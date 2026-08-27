@@ -1,0 +1,26 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="badge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3D6BF0"/>
+      <stop offset="100%" stop-color="#0B2E96"/>
+    </linearGradient>
+  </defs>
+
+  <!-- badge -->
+  <rect x="4" y="4" width="192" height="192" rx="46" fill="url(#badge)"/>
+
+  <!-- monoline F built from 3 bars, bottom bar tapers into a wake/sail point -->
+  <g fill="#FFFFFF">
+    <!-- vertical spine -->
+    <rect x="66" y="46" width="24" height="112" rx="10"/>
+    <!-- top bar -->
+    <rect x="66" y="46" width="82" height="24" rx="10"/>
+    <!-- middle bar, shorter -->
+    <rect x="66" y="90" width="62" height="22" rx="10"/>
+    <!-- sail/wake accent terminal at end of top bar -->
+    <path d="M148 46 L172 58 L148 70 Z"/>
+  </g>
+
+  <!-- small dot echoing a horizon / ferry light -->
+  <circle cx="150" cy="140" r="9" fill="#FFC93C"/>
+</svg>

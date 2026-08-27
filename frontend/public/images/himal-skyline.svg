@@ -1,0 +1,18 @@
+<svg viewBox="0 0 1200 220" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <path d="M0 220 L120 90 L200 160 L300 40 L400 150 L520 70 L640 170 L760 60 L880 140 L1000 80 L1120 160 L1200 100 L1200 220 Z" fill="#DCE6FF" opacity="0.6"/>
+  <path d="M0 220 L160 130 L260 180 L380 100 L500 190 L620 120 L740 200 L860 110 L980 190 L1100 130 L1200 180 L1200 220 Z" fill="#EEF3FF"/>
+  <!-- prayer flag line -->
+  <line x1="0" y1="30" x2="1200" y2="30" stroke="#0B2E96" stroke-width="2" opacity="0.3"/>
+  <g opacity="0.85">
+    <path d="M40 30 l18 0 l0 22 l-18 0 Z" fill="#1E4FE0"/>
+    <path d="M80 30 l18 0 l0 22 l-18 0 Z" fill="#FFFFFF" stroke="#DCE6FF"/>
+    <path d="M120 30 l18 0 l0 22 l-18 0 Z" fill="#E23744"/>
+    <path d="M160 30 l18 0 l0 22 l-18 0 Z" fill="#1DA463"/>
+    <path d="M200 30 l18 0 l0 22 l-18 0 Z" fill="#FFC93C"/>
+    <path d="M900 30 l18 0 l0 22 l-18 0 Z" fill="#1E4FE0"/>
+    <path d="M940 30 l18 0 l0 22 l-18 0 Z" fill="#FFFFFF" stroke="#DCE6FF"/>
+    <path d="M980 30 l18 0 l0 22 l-18 0 Z" fill="#E23744"/>
+    <path d="M1020 30 l18 0 l0 22 l-18 0 Z" fill="#1DA463"/>
+    <path d="M1060 30 l18 0 l0 22 l-18 0 Z" fill="#FFC93C"/>
+  </g>
+</svg>

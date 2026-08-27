@@ -1,0 +1,23 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="200" cy="270" rx="150" ry="14" fill="#FDEEEF"/>
+  <!-- profile cards -->
+  <g>
+    <rect x="60" y="90" width="100" height="130" rx="12" fill="#FFFFFF" stroke="#EAF0FF" stroke-width="2"/>
+    <circle cx="110" cy="130" r="18" fill="#DCE6FF"/>
+    <rect x="86" y="156" width="48" height="8" rx="4" fill="#EAF0FF"/>
+    <rect x="94" y="170" width="32" height="6" rx="3" fill="#EEF3FF"/>
+    <rect x="80" y="192" width="60" height="16" rx="8" fill="#1DA463"/>
+  </g>
+  <g>
+    <rect x="240" y="90" width="100" height="130" rx="12" fill="#FFFFFF" stroke="#FDEEEF" stroke-width="2"/>
+    <circle cx="290" cy="130" r="18" fill="#FBD3D6"/>
+    <rect x="266" y="156" width="48" height="8" rx="4" fill="#FDEEEF"/>
+    <rect x="274" y="170" width="32" height="6" rx="3" fill="#FDEEEF"/>
+    <rect x="260" y="192" width="60" height="16" rx="8" fill="#E23744"/>
+  </g>
+  <!-- magnifying glass -->
+  <circle cx="200" cy="140" r="42" fill="none" stroke="#123FC2" stroke-width="8"/>
+  <circle cx="200" cy="140" r="30" fill="#EEF3FF"/>
+  <rect x="228" y="168" width="16" height="46" rx="8" fill="#123FC2" transform="rotate(45 228 168)"/>
+  <path d="M180 132l14 14 24-26" stroke="#1E4FE0" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
