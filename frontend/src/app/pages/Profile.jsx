@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
 import { apiUpload } from "../../lib/apiClient";
 import { supabase } from "../../lib/supabaseClient";
+import { PostCard } from "./Feed";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { Avatar, Card, ExternalLinkChip, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
@@ -27,6 +28,19 @@ export default function Profile({ session, profile: ownProfile }) {
   const isClient = profile?.role === "client";
   const profileId = profile?.id || id;
   const viewerId = session?.user?.id;
+  const [showAllPosts, setShowAllPosts] = useState(false);
+  const { data: posts = [], loading: postsLoading, refetch: refetchPosts } = useSupabaseQuery(
+    (sb) => profileId
+      ? sb
+          .from("posts")
+          .select("*, author:profiles!posts_author_id_fkey(full_name, title, avatar_url)")
+          .eq("author_id", profileId)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    [profileId],
+    []
+  );
+  const visiblePosts = showAllPosts ? posts : posts.slice(0, 3);
   const { data: connectionStats = [] , refetch: refetchConnections } = useSupabaseQuery(
     (sb) => profileId
       ? sb.from("connections").select("id").or(`requester_id.eq.${profileId},recipient_id.eq.${profileId}`).eq("status", "accepted")
@@ -286,8 +300,8 @@ export default function Profile({ session, profile: ownProfile }) {
       </Card>
 
         <div className="space-y-4 sm:space-y-5">
-          <Card className="rounded-2xl border border-[#dce6ff] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] sm:p-6">
-            <SectionTitle icon="person" title="About" />
+           <Card className="rounded-2xl border border-[#dce6ff] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] sm:p-6">
+             <SectionTitle icon="person" title="About" />
             <p className="whitespace-pre-line text-[13px] leading-6 text-[#464554] sm:text-sm">
               {profile?.about || (isOwnProfile ? "Add a short bio from Edit Profile so people know what you do." : "No bio added yet.")}
             </p>
@@ -296,10 +310,41 @@ export default function Profile({ session, profile: ownProfile }) {
                 <h3 className="mb-1 mt-5 text-sm font-bold text-[#0b1c30]">Our mission</h3>
                 <p className="text-[13px] leading-6 text-[#464554] sm:text-sm">{profile.mission}</p>
               </>
-            ) : null}
-          </Card>
+             ) : null}
+           </Card>
 
-          {isClient ? (
+           <section>
+             <div className="mb-3 flex items-center justify-between px-1">
+               <h2 className="flex items-center gap-2 text-base font-extrabold text-[#0b1c30] sm:text-lg">
+                 <Icon className="text-[20px] text-[#3d3fc4]">article</Icon>
+                 Latest posts
+               </h2>
+               {posts.length > 3 ? (
+                 <button
+                   type="button"
+                   onClick={() => setShowAllPosts((value) => !value)}
+                   className="text-xs font-bold text-[#3d3fc4] hover:underline sm:text-sm"
+                 >
+                   {showAllPosts ? "Show fewer" : "See all posts"}
+                 </button>
+               ) : null}
+             </div>
+             {postsLoading ? (
+               <Card className="rounded-2xl border border-[#dce6ff] bg-white p-6 text-sm text-[#767586]">Loading posts…</Card>
+             ) : visiblePosts.length ? (
+               <div className="space-y-4">
+                 {visiblePosts.map((post) => (
+                   <PostCard key={post.id} post={post} profile={profile} session={session} onPostUpdated={refetchPosts} />
+                 ))}
+               </div>
+             ) : (
+               <Card className="rounded-2xl border border-[#dce6ff] bg-white p-6 text-sm text-[#767586]">
+                 {isOwnProfile ? "Your latest posts will appear here." : "No posts yet."}
+               </Card>
+             )}
+           </section>
+
+           {isClient ? (
             <Card className="rounded-2xl border border-[#dce6ff] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] sm:p-6">
               <SectionTitle icon="business" title="Business details" />
               <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm sm:gap-x-5 sm:gap-y-5">

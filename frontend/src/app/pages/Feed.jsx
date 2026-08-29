@@ -249,7 +249,7 @@ export default function Feed({ profile, session }) {
   );
 }
 
-function PostCard({ post, profile, session, onPostUpdated }) {
+export function PostCard({ post, profile, session, onPostUpdated }) {
   const isOwner = Boolean(session?.user?.id && post.author_id === session.user.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
