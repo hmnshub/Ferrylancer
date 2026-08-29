@@ -43,6 +43,25 @@ export default function AppShell({ session, profile }) {
   );
   const pendingCount = pendingConnections?.length ?? 0;
 
+  const { data: unreadMessageNotifications = [], refetch: refetchUnreadMessages } = useSupabaseQuery(
+    (sb) => sb
+      .from("notifications")
+      .select("id")
+      .eq("user_id", session?.user?.id || "")
+      .eq("type", "message")
+      .eq("unread", true),
+    [session?.user?.id],
+    []
+  );
+  const unreadMessageCount = unreadMessageNotifications.length;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => refetchUnreadMessages(), 15000);
+    return () => window.clearInterval(timer);
+    // The query hook returns a new refetch function on each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
   // Searchable data for autocomplete
   const { data: searchProfiles = [] } = useSupabaseQuery(
     (sb) => sb.from("profiles").select("id, full_name, title, avatar_url, role, location").limit(50),
@@ -285,7 +304,12 @@ export default function AppShell({ session, profile }) {
                   }`
                 }
               >
-                {link.label}
+                <span>{link.label}</span>
+                {link.to === "/app/messages" && unreadMessageCount > 0 && (
+                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#1877F2] px-1 text-[11px] font-bold text-white">
+                    {unreadMessageCount}
+                  </span>
+                )}
                 {link.to === "/app/network" && pendingCount > 0 && (
                   <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#1877F2] px-1 text-[11px] font-bold text-white">
                     {pendingCount}
@@ -363,6 +387,11 @@ export default function AppShell({ session, profile }) {
               <>
                 <span className="relative">
                   <Icon filled={isActive}>{link.icon}</Icon>
+                  {link.to === "/app/messages" && unreadMessageCount > 0 && (
+                    <span className="absolute -right-3 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#1877F2] px-1 text-[10px] font-bold leading-none text-white">
+                      {unreadMessageCount}
+                    </span>
+                  )}
                   {link.to === "/app/network" && pendingCount > 0 && (
                     <span className="absolute -right-3 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#1877F2] px-1 text-[10px] font-bold leading-none text-white">
                       {pendingCount}

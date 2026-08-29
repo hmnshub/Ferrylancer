@@ -52,6 +52,8 @@ export default function ProjectResponses({ session }) {
         user_id: proposal.freelancer_id,
         type: "message",
         text: `You were hired for “${project.title}”. Check your messages to get started.`,
+        meta: { conversation_id: conversation.id, sender_id: session.user.id },
+        unread: true,
       });
       if (notificationError) console.warn("Hire notification could not be created:", notificationError.message);
       navigate("/app/messages");

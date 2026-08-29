@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { supabase } from "../../lib/supabaseClient";
 import { Avatar, Card, Icon } from "../ui/primitives";
@@ -6,8 +6,17 @@ import { Avatar, Card, Icon } from "../ui/primitives";
 export default function Messages({ session }) {
   const [activeId, setActiveId] = useState(null);
   const [draft, setDraft] = useState("");
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches);
 
-  const { data: conversations = [] } = useSupabaseQuery(
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const handleChange = () => setIsDesktop(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener?.("change", handleChange);
+    return () => mediaQuery.removeEventListener?.("change", handleChange);
+  }, []);
+
+  const { data: conversations = [], refetch: refetchConversations } = useSupabaseQuery(
     (sb) =>
       sb
         .from("conversations")
@@ -18,6 +27,23 @@ export default function Messages({ session }) {
     []
   );
 
+  const { data: unreadMessageNotifications = [], refetch: refetchUnreadMessages } = useSupabaseQuery(
+    (sb) => sb
+      .from("notifications")
+      .select("id, meta")
+      .eq("user_id", session?.user?.id || "")
+      .eq("type", "message")
+      .eq("unread", true),
+    [session?.user?.id],
+    []
+  );
+
+  const unreadByConversation = useMemo(() => unreadMessageNotifications.reduce((counts, notification) => {
+    const conversationId = notification.meta?.conversation_id;
+    if (conversationId) counts[conversationId] = (counts[conversationId] || 0) + 1;
+    return counts;
+  }, {}), [unreadMessageNotifications]);
+
   const participantIds = useMemo(() => [...new Set(conversations.flatMap((conversation) => [conversation.participant_a, conversation.participant_b]).filter((id) => id && id !== session?.user?.id))], [conversations, session?.user?.id]);
   const { data: participants = [] } = useSupabaseQuery(
     (sb) => sb.from("profiles").select("id, full_name, company_name, title, avatar_url").in("id", participantIds.length ? participantIds : ["00000000-0000-0000-0000-000000000000"]),
@@ -27,13 +53,28 @@ export default function Messages({ session }) {
 
   const personFor = (conversation) => participants.find((person) => person.id === (conversation.participant_a === session?.user?.id ? conversation.participant_b : conversation.participant_a));
 
-  const active = conversations.find((c) => c.id === activeId) || conversations[0];
+  const active = conversations.find((c) => c.id === activeId) || (isDesktop ? conversations[0] : null);
 
   const { data: messages = [], refetch } = useSupabaseQuery(
     (sb) => sb.from("messages").select("*").eq("conversation_id", active?.id || "").order("created_at", { ascending: true }),
     [active?.id],
     []
   );
+
+  useEffect(() => {
+    if (!active?.id || !session?.user?.id || !supabase) return;
+    supabase
+      .from("notifications")
+      .update({ unread: false })
+      .eq("user_id", session.user.id)
+      .eq("type", "message")
+      .eq("unread", true)
+      .contains("meta", { conversation_id: active.id })
+      .then(() => refetchUnreadMessages());
+    // The query hook returns a new refetch function on each render; this effect
+    // intentionally depends only on the selected conversation and user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, session?.user?.id]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -44,8 +85,21 @@ export default function Messages({ session }) {
       console.error(error);
       return;
     }
+    const recipientId = active.participant_a === session.user.id ? active.participant_b : active.participant_a;
+    await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", active.id);
+    if (recipientId && recipientId !== session.user.id) {
+      const senderName = session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "Someone";
+      await supabase.from("notifications").insert({
+        user_id: recipientId,
+        type: "message",
+        text: `${senderName} sent you a message.`,
+        meta: { conversation_id: active.id, sender_id: session.user.id },
+        unread: true,
+      });
+    }
     setDraft("");
     refetch();
+    refetchConversations();
   };
 
   return (
@@ -74,7 +128,11 @@ export default function Messages({ session }) {
                 </div>
                 <p className="truncate text-xs text-[#65676B]">{personFor(c)?.title || "Active conversation"}</p>
               </div>
-              {c.unread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#1877F2]" /> : null}
+              {(unreadByConversation[c.id] || 0) > 0 ? (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#1877F2] px-1 text-[10px] font-bold text-white">
+                  {unreadByConversation[c.id]}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
