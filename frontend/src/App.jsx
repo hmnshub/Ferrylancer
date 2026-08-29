@@ -28,6 +28,7 @@ import Notifications from "./app/pages/Notifications";
 import CreatePost from "./app/pages/CreatePost";
 import Earnings from "./app/pages/Earnings";
 import Profile from "./app/pages/Profile";
+import ProfilePosts from "./app/pages/ProfilePosts";
 import Network from "./app/pages/Network";
 import ProjectResponses from "./app/pages/ProjectResponses";
 
@@ -152,6 +153,8 @@ function App() {
           <Route path="create" element={<CreatePost session={session} profile={profile} />} />
           <Route path="earnings" element={<Earnings session={session} />} />
           <Route path="profile" element={<Profile session={session} profile={profile} />} />
+          <Route path="profile/posts" element={<ProfilePosts session={session} profile={profile} />} />
+          <Route path="profile/:id/posts" element={<ProfilePosts session={session} profile={profile} />} />
           <Route path="profile/:id" element={<Profile session={session} profile={profile} />} />
           <Route
             path="onboarding"

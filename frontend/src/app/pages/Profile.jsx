@@ -28,7 +28,6 @@ export default function Profile({ session, profile: ownProfile }) {
   const isClient = profile?.role === "client";
   const profileId = profile?.id || id;
   const viewerId = session?.user?.id;
-  const [showAllPosts, setShowAllPosts] = useState(false);
   const { data: posts = [], loading: postsLoading, refetch: refetchPosts } = useSupabaseQuery(
     (sb) => profileId
       ? sb
@@ -36,11 +35,11 @@ export default function Profile({ session, profile: ownProfile }) {
           .select("*, author:profiles!posts_author_id_fkey(full_name, title, avatar_url)")
           .eq("author_id", profileId)
           .order("created_at", { ascending: false })
+          .limit(1)
       : Promise.resolve({ data: [], error: null }),
     [profileId],
     []
   );
-  const visiblePosts = showAllPosts ? posts : posts.slice(0, 1);
   const { data: connectionStats = [] , refetch: refetchConnections } = useSupabaseQuery(
     (sb) => profileId
       ? sb.from("connections").select("id").or(`requester_id.eq.${profileId},recipient_id.eq.${profileId}`).eq("status", "accepted")
@@ -322,9 +321,9 @@ export default function Profile({ session, profile: ownProfile }) {
              </div>
              {postsLoading ? (
                <Card className="rounded-2xl border border-[#dce6ff] bg-white p-6 text-sm text-[#767586]">Loading posts…</Card>
-             ) : visiblePosts.length ? (
+             ) : posts.length ? (
                <div className="space-y-4">
-                 {visiblePosts.map((post) => (
+                 {posts.map((post) => (
                    <PostCard key={post.id} post={post} profile={profile} session={session} onPostUpdated={refetchPosts} />
                  ))}
                </div>
@@ -333,15 +332,14 @@ export default function Profile({ session, profile: ownProfile }) {
                  {isOwnProfile ? "Your latest posts will appear here." : "No posts yet."}
                </Card>
              )}
-             {!postsLoading && posts.length > 1 ? (
-               <button
-                 type="button"
-                 onClick={() => setShowAllPosts((value) => !value)}
+             {!postsLoading && posts.length > 0 ? (
+               <NavLink
+                 to={isOwnProfile ? "/app/profile/posts" : `/app/profile/${profileId}/posts`}
                  className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-[#dce6ff] bg-white px-4 py-3 text-sm font-bold text-[#3d3fc4] shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] hover:bg-[#f4f6ff]"
                >
-                 {showAllPosts ? "Show latest post" : `See all ${posts.length} posts`}
-                 <Icon className="text-[18px]">{showAllPosts ? "expand_less" : "arrow_forward"}</Icon>
-               </button>
+                 See all posts
+                 <Icon className="text-[18px]">arrow_forward</Icon>
+               </NavLink>
              ) : null}
            </section>
 
