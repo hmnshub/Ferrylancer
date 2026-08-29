@@ -1,10 +1,9 @@
 /**
- * High-quality client-side image compression.
- * Resizes photos to max 2048px (Facebook high-res standard)
- * and compresses using HTML5 Canvas WebP with quality ~0.89.
- * Preserves crisp sharpness & detail while drastically reducing payload size.
+ * Client-side image compression. Keep the browser fallback below the same
+ * size target as the backend so direct Supabase uploads do not store large
+ * originals when the API is unavailable.
  */
-export async function compressImage(file, maxDimension = 2048, quality = 0.89) {
+export async function compressImage(file, maxDimension = 1600, quality = 0.82, maxBytes = 45 * 1024) {
   if (!file || !(file instanceof Blob)) return file;
 
   // Don't alter animated GIFs or SVGs
@@ -38,22 +37,28 @@ export async function compressImage(file, maxDimension = 2048, quality = 0.89) {
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, width, height);
 
-        canvas.toBlob(
-          (blob) => {
-            if (!blob || blob.size >= file.size) {
-              resolve(file);
-            } else {
+        const encode = (targetWidth, targetHeight, targetQuality) => {
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          ctx.clearRect(0, 0, targetWidth, targetHeight);
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          canvas.toBlob((blob) => {
+            if (!blob) return resolve(file);
+            if (blob.size <= maxBytes || (targetWidth <= 320 && targetQuality <= 0.34)) {
+              const result = blob.size < file.size ? blob : file;
+              if (result === file) return resolve(file);
               const newFileName = file.name.replace(/\.[^.]+$/, "") + ".webp";
-              const compressedFile = new File([blob], newFileName, {
-                type: "image/webp",
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
+              return resolve(new File([result], newFileName, { type: "image/webp", lastModified: Date.now() }));
             }
-          },
-          "image/webp",
-          quality
-        );
+
+            const nextQuality = targetQuality <= 0.34 ? 0.82 : targetQuality - 0.1;
+            const nextWidth = targetQuality <= 0.34 ? Math.max(320, Math.round(targetWidth * 0.75)) : targetWidth;
+            const nextHeight = Math.max(1, Math.round((nextWidth / targetWidth) * targetHeight));
+            encode(nextWidth, nextHeight, nextQuality);
+          }, "image/webp", targetQuality);
+        };
+
+        encode(width, height, quality);
       };
       img.onerror = () => resolve(file);
       img.src = e.target.result;
@@ -73,4 +78,3 @@ export async function compressMultipleImages(files, onProgress) {
   }
   return results;
 }
-

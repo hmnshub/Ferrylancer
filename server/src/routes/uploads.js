@@ -14,11 +14,38 @@ const upload = multer({
 });
 
 const BUCKETS = {
-  avatar: { bucket: "avatars", maxWidth: 512, quality: 82 },
-  cover: { bucket: "avatars", maxWidth: 1600, quality: 78 },
-  "post-image": { bucket: "post-images", maxWidth: 1600, quality: 80 },
-  "portfolio-image": { bucket: "portfolio-images", maxWidth: 1600, quality: 80 },
+  avatar: { bucket: "avatars", maxWidth: 512, quality: 78 },
+  cover: { bucket: "avatars", maxWidth: 1600, quality: 72 },
+  "post-image": { bucket: "post-images", maxWidth: 1600, quality: 74 },
+  "portfolio-image": { bucket: "portfolio-images", maxWidth: 1600, quality: 74 },
 };
+
+const TARGET_BYTES = 45 * 1024;
+
+async function optimizeImage(buffer, config) {
+  // Try progressively smaller dimensions and WebP quality until the stored
+  // object is below the storage target. The final candidate is returned even
+  // when an unusually complex image cannot reach the target without becoming
+  // unusably small.
+  const widths = [config.maxWidth, Math.round(config.maxWidth * 0.8), Math.round(config.maxWidth * 0.64), 480, 320];
+  const qualities = [config.quality, 62, 52, 42, 34, 28];
+  let smallest;
+
+  for (const width of widths) {
+    for (const quality of qualities) {
+      const candidate = await sharp(buffer)
+        .rotate()
+        .resize({ width, withoutEnlargement: true })
+        .webp({ quality, effort: 4 })
+        .toBuffer();
+
+      smallest = candidate;
+      if (candidate.length <= TARGET_BYTES) return candidate;
+    }
+  }
+
+  return smallest;
+}
 
 /**
  * POST /api/uploads
@@ -38,11 +65,7 @@ router.post("/", requireAuth, upload.single("file"), async (req, res) => {
     const config = BUCKETS[kind];
     if (!config) return res.status(400).json({ error: `Unknown upload kind: ${kind}` });
 
-    const optimized = await sharp(req.file.buffer)
-      .rotate() // respect EXIF orientation
-      .resize({ width: config.maxWidth, withoutEnlargement: true })
-      .webp({ quality: config.quality })
-      .toBuffer();
+    const optimized = await optimizeImage(req.file.buffer, config);
 
     const path = `${req.user.id}/${kind}-${randomUUID()}.webp`;
 

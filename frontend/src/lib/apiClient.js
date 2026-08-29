@@ -29,6 +29,13 @@ export async function apiPost(path, body) {
   return res.json();
 }
 
+export async function apiDelete(path) {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: "DELETE", headers });
+  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
+  return res.json();
+}
+
 // Uploads (avatar / cover / post / portfolio images) go through multipart/form-data
 // so the backend can resize+compress with sharp before storing in Supabase Storage.
 export async function apiUpload(file, kind) {

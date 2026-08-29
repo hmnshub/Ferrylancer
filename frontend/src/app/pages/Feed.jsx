@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { apiUpload } from "../../lib/apiClient";
+import { apiDelete, apiUpload } from "../../lib/apiClient";
 import { compressMultipleImages } from "../../lib/imageCompressor";
 import { detectLinkMeta, normalizeUrl } from "../../lib/linkUtils";
 import { supabase } from "../../lib/supabaseClient";
@@ -549,8 +549,7 @@ function PostCard({ post, profile, session, onPostUpdated }) {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const { error: deleteErr } = await supabase.from("posts").delete().eq("id", post.id);
-      if (deleteErr) throw deleteErr;
+      await apiDelete(`/api/posts/${post.id}`);
 
       setShowDeleteConfirm(false);
       if (onPostUpdated) onPostUpdated();

@@ -9,6 +9,7 @@ import feedRouter from "./routes/feed.js";
 import searchRouter from "./routes/search.js";
 import notificationsRouter from "./routes/notifications.js";
 import proposalsRouter from "./routes/proposals.js";
+import postsRouter from "./routes/posts.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -41,6 +42,7 @@ app.use("/api/feed", feedRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/proposals", proposalsRouter);
+app.use("/api/posts", postsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
