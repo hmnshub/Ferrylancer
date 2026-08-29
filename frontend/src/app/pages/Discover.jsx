@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { NavLink, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
-import { Avatar, Badge, Card, EmptyState, Icon, PageHeader, PrimaryButton, SecondaryButton } from "../ui/primitives";
+import { Avatar, Badge, Card, EmptyState, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
 const CATEGORIES = ["Design & Creative", "Web Development", "Mobile Apps", "Writing", "Marketing"];
 const SORTS = ["Recommended", "Latest", "Most Relevant"];
 
 export default function Discover({ session, profile: ownProfile }) {
+  const userId = session?.user?.id ?? "";
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [activeCategories, setActiveCategories] = useState([]);
@@ -88,7 +90,7 @@ export default function Discover({ session, profile: ownProfile }) {
     return list;
   }, [people, query]);
 
-  // Auto-switch tabs based on search results (e.g. if projects are empty but people have matches, flip to people)
+  const submitSearch = (e) => {
     e.preventDefault();
     setSearchParams(query ? { q: query, tab: activeTab } : { tab: activeTab });
   };

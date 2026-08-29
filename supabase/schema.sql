@@ -58,6 +58,9 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+-- Existing profile tables need this migration to enable cover photos.
+alter table public.profiles add column if not exists cover_url text;
+
 -- ---------------------------------------------------------------------
 -- freelancer sub-sections (kept as separate tables so the onboarding
 -- "Skills & Services", "Portfolio", "Experience" steps map 1:1 to rows
@@ -123,11 +126,14 @@ create table if not exists public.posts (
   type text not null default 'post', -- 'post' | 'project' (client project announcement)
   content text not null,
   image text,
+  images jsonb not null default '[]'::jsonb,
   external_link text,
   likes int not null default 0,
   comments int not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.posts add column if not exists images jsonb not null default '[]'::jsonb;
 
 create table if not exists public.post_likes (
   post_id uuid not null references public.posts (id) on delete cascade,
@@ -150,11 +156,17 @@ create table if not exists public.post_comments (
 create table if not exists public.projects (
   id uuid primary key default uuid_generate_v4(),
   client_id uuid references public.profiles (id) on delete set null,
+  hired_freelancer_id uuid references public.profiles (id) on delete set null,
   title text not null,
   description text,
   status text not null default 'Open', -- Open | In Progress | Completed | Closed
   budget text,
+  accepted_budget text,
+  escrow_amount text,
+  escrow_status text not null default 'Not funded', -- Not funded | Held | Released
+  estimated_time text,
   deadline text,
+  application_deadline date,
   tags jsonb not null default '[]'::jsonb,
   proposals int not null default 0,
   created_at timestamptz not null default now()
@@ -167,9 +179,19 @@ create table if not exists public.proposals (
   bid_amount text,
   delivery_days text,
   cover_letter text,
+  proposal_links jsonb not null default '[]'::jsonb,
   status text not null default 'Under Review', -- Under Review | Accepted | Declined
   created_at timestamptz not null default now()
 );
+
+-- Existing projects need this migration after the original schema has run.
+alter table public.proposals add column if not exists proposal_links jsonb not null default '[]'::jsonb;
+alter table public.projects add column if not exists estimated_time text;
+alter table public.projects add column if not exists application_deadline date;
+alter table public.projects add column if not exists hired_freelancer_id uuid references public.profiles (id) on delete set null;
+alter table public.projects add column if not exists accepted_budget text;
+alter table public.projects add column if not exists escrow_amount text;
+alter table public.projects add column if not exists escrow_status text not null default 'Not funded';
 
 create table if not exists public.saved_projects (
   project_id uuid not null references public.projects (id) on delete cascade,
@@ -199,6 +221,27 @@ create table if not exists public.connections (
   unique (requester_id, recipient_id)
 );
 
+-- LinkedIn-style one-way follows.
+create table if not exists public.follows (
+  follower_id uuid not null references public.profiles (id) on delete cascade,
+  following_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (follower_id, following_id),
+  check (follower_id <> following_id)
+);
+
+-- Ratings/reviews left by users after working together.
+create table if not exists public.ratings (
+  id uuid primary key default uuid_generate_v4(),
+  rated_user_id uuid not null references public.profiles (id) on delete cascade,
+  rater_user_id uuid not null references public.profiles (id) on delete cascade,
+  project_id uuid references public.projects (id) on delete set null,
+  score numeric(2,1) not null check (score >= 1 and score <= 5),
+  review text,
+  created_at timestamptz not null default now(),
+  unique (rated_user_id, rater_user_id, project_id)
+);
+
 -- ---------------------------------------------------------------------
 -- messaging
 -- ---------------------------------------------------------------------
@@ -226,9 +269,14 @@ create table if not exists public.notifications (
   user_id uuid not null references public.profiles (id) on delete cascade,
   type text not null, -- proposal | message | connection | payment | system
   text text not null,
+  meta jsonb not null default '{}'::jsonb, -- extra context: requester_id, accepter_id, etc.
   unread boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+-- Migration: add meta column to existing notifications tables
+alter table public.notifications add column if not exists meta jsonb not null default '{}'::jsonb;
+
 
 -- ---------------------------------------------------------------------
 -- wallet / earnings
@@ -267,6 +315,8 @@ alter table public.proposals enable row level security;
 alter table public.saved_projects enable row level security;
 alter table public.milestones enable row level security;
 alter table public.connections enable row level security;
+alter table public.follows enable row level security;
+alter table public.ratings enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.notifications enable row level security;
@@ -325,7 +375,15 @@ create policy "proposals visible to participants" on public.proposals for select
   or auth.uid() in (select client_id from public.projects where projects.id = proposals.project_id)
 );
 drop policy if exists "freelancer creates own proposal" on public.proposals;
-create policy "freelancer creates own proposal" on public.proposals for insert with check (auth.uid() = freelancer_id);
+-- Owners cannot submit proposals to their own projects, and applications close on the configured date.
+create policy "freelancer creates own proposal" on public.proposals for insert with check (
+  auth.uid() = freelancer_id
+  and auth.uid() <> (select client_id from public.projects where projects.id = proposals.project_id)
+  and (
+    (select application_deadline from public.projects where projects.id = proposals.project_id) is null
+    or (select application_deadline from public.projects where projects.id = proposals.project_id) >= current_date
+  )
+);
 drop policy if exists "participants update proposal" on public.proposals;
 create policy "participants update proposal" on public.proposals for update using (
   auth.uid() = freelancer_id
@@ -344,9 +402,35 @@ create policy "milestones client write" on public.milestones for all using (
 
 -- Connections: visible + writable by either party.
 drop policy if exists "connections participants only" on public.connections;
-create policy "connections participants only" on public.connections for all using (
+drop policy if exists "connections public read" on public.connections;
+create policy "connections public read" on public.connections for select using (true);
+create policy "connections participants only" on public.connections for insert with check (
+  auth.uid() = requester_id
+) ;
+drop policy if exists "connections participants update" on public.connections;
+create policy "connections participants update" on public.connections for update using (
   auth.uid() = requester_id or auth.uid() = recipient_id
-) with check (auth.uid() = requester_id);
+) with check (auth.uid() = requester_id or auth.uid() = recipient_id);
+drop policy if exists "connections participants delete" on public.connections;
+create policy "connections participants delete" on public.connections for delete using (
+  auth.uid() = requester_id or auth.uid() = recipient_id
+);
+
+drop policy if exists "follows public read" on public.follows;
+create policy "follows public read" on public.follows for select using (true);
+drop policy if exists "users manage own follows" on public.follows;
+create policy "users manage own follows" on public.follows for insert with check (auth.uid() = follower_id);
+drop policy if exists "users delete own follows" on public.follows;
+create policy "users delete own follows" on public.follows for delete using (auth.uid() = follower_id);
+
+drop policy if exists "ratings public read" on public.ratings;
+create policy "ratings public read" on public.ratings for select using (true);
+drop policy if exists "users create ratings" on public.ratings;
+create policy "users create ratings" on public.ratings for insert with check (auth.uid() = rater_user_id);
+drop policy if exists "users update ratings" on public.ratings;
+create policy "users update ratings" on public.ratings for update using (auth.uid() = rater_user_id) with check (auth.uid() = rater_user_id);
+drop policy if exists "users delete ratings" on public.ratings;
+create policy "users delete ratings" on public.ratings for delete using (auth.uid() = rater_user_id);
 
 -- Conversations & messages: only the two participants can read/write.
 drop policy if exists "conversations participants only" on public.conversations;
@@ -363,9 +447,26 @@ create policy "messages participants only" on public.messages for all using (
   )
 ) with check (auth.uid() = sender_id);
 
--- Notifications: only the recipient can see/update their own.
+-- Notifications: users own their inbox, while either participant in a
+-- connection may create a notification for the other participant.
 drop policy if exists "notifications owner only" on public.notifications;
-create policy "notifications owner only" on public.notifications for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "notifications owner read" on public.notifications;
+drop policy if exists "notifications owner insert" on public.notifications;
+drop policy if exists "notifications connection insert" on public.notifications;
+drop policy if exists "notifications owner update" on public.notifications;
+drop policy if exists "notifications owner delete" on public.notifications;
+create policy "notifications owner read" on public.notifications for select using (
+  auth.uid() = user_id
+);
+create policy "notifications insert allowed" on public.notifications for insert with check (
+  auth.uid() is not null
+);
+create policy "notifications owner update" on public.notifications for update using (
+  auth.uid() = user_id
+) with check (auth.uid() = user_id);
+create policy "notifications owner delete" on public.notifications for delete using (
+  auth.uid() = user_id
+);
 
 -- Wallet & transactions: owner only.
 drop policy if exists "wallet owner only" on public.wallets;
