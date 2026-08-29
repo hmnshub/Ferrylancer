@@ -4,8 +4,15 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 140px;
 }
 
 body {
   font-family: 'Inter', sans-serif;
+  overflow-x: clip;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
 }

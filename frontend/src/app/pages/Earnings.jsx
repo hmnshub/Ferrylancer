@@ -1,18 +1,17 @@
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
-import { sampleEarnings } from "../data/sampleData";
 import { Badge, Card, Icon, PageHeader, PrimaryButton } from "../ui/primitives";
 
 export default function Earnings({ session }) {
-  const { data: wallet } = useSupabaseQuery(
+  const { data: wallet = {} } = useSupabaseQuery(
     (sb) => sb.from("wallets").select("*").eq("user_id", session?.user?.id || "").maybeSingle(),
     [session?.user?.id],
-    sampleEarnings
+    {}
   );
 
-  const { data: transactions } = useSupabaseQuery(
+  const { data: transactions = [] } = useSupabaseQuery(
     (sb) => sb.from("transactions").select("*").eq("user_id", session?.user?.id || "").order("created_at", { ascending: false }),
     [session?.user?.id],
-    sampleEarnings.transactions
+    []
   );
 
   return (
@@ -51,7 +50,7 @@ export default function Earnings({ session }) {
             <div key={t.id} className="flex items-center justify-between p-4">
               <div>
                 <div className="text-sm font-semibold text-[#0b1c30]">{t.label}</div>
-                <div className="text-xs text-[#565e74]">{t.date}</div>
+                <div className="text-xs text-[#565e74]">{t.created_at ? new Date(t.created_at).toLocaleDateString() : ""}</div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-[#0b1c30]">+${t.amount}</span>

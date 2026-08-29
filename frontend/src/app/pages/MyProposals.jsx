@@ -1,12 +1,11 @@
 import { NavLink } from "react-router-dom";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
-import { sampleProposals } from "../data/sampleData";
 import { Badge, Card, EmptyState, PageHeader, PrimaryButton } from "../ui/primitives";
 
 const STATUS_TONE = { "Under Review": "warning", Accepted: "success", Declined: "danger" };
 
 export default function MyProposals({ session }) {
-  const { data: proposals, loading } = useSupabaseQuery(
+  const { data: proposals = [], loading } = useSupabaseQuery(
     (sb) =>
       sb
         .from("proposals")
@@ -14,7 +13,7 @@ export default function MyProposals({ session }) {
         .eq("freelancer_id", session?.user?.id || "")
         .order("created_at", { ascending: false }),
     [session?.user?.id],
-    sampleProposals
+    []
   );
 
   return (

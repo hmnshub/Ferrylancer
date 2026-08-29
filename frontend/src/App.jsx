@@ -28,6 +28,8 @@ import Notifications from "./app/pages/Notifications";
 import CreatePost from "./app/pages/CreatePost";
 import Earnings from "./app/pages/Earnings";
 import Profile from "./app/pages/Profile";
+import Network from "./app/pages/Network";
+import ProjectResponses from "./app/pages/ProjectResponses";
 
 function getUserRole(session) {
   const raw = session?.user?.user_metadata?.role ?? session?.user?.app_metadata?.role ?? null;
@@ -133,18 +135,20 @@ function App() {
             index
             element={
               <HomeGate session={session} profile={profile} profileLoading={profileLoading}>
-                <Feed profile={profile} />
+                <Feed profile={profile} session={session} />
               </HomeGate>
             }
           />
-          <Route path="discover" element={<Discover />} />
-          <Route path="projects" element={<MyProjects profile={profile} />} />
-          <Route path="projects/:id" element={<ProjectDetails />} />
+          <Route path="discover" element={<Discover session={session} profile={profile} />} />
+          <Route path="projects" element={<MyProjects profile={profile} session={session} />} />
+          <Route path="projects/:id" element={<ProjectDetails session={session} />} />
+          <Route path="projects/:id/responses" element={<ProjectResponses session={session} />} />
           <Route path="workspace/:id" element={<ProjectWorkspace />} />
           <Route path="proposals" element={<MyProposals session={session} />} />
           <Route path="proposals/new/:projectId" element={<SubmitProposal session={session} />} />
           <Route path="messages" element={<Messages session={session} />} />
           <Route path="notifications" element={<Notifications session={session} />} />
+          <Route path="network" element={<Network session={session} profile={profile} />} />
           <Route path="create" element={<CreatePost session={session} profile={profile} />} />
           <Route path="earnings" element={<Earnings session={session} />} />
           <Route path="profile" element={<Profile session={session} profile={profile} />} />

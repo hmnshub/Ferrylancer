@@ -1,8 +1,5 @@
 // Shared building blocks for every screen inside the app shell (Feed, Discover,
-// Profile, Messages, etc). Colors are the literal hex values from the Stitch
-// "Ferrylance" design system (see DESIGN.md) applied as Tailwind arbitrary
-// values, matching how the rest of this codebase (FreelancerOnboarding.jsx)
-// already works — no tailwind.config changes required.
+// Profile, Messages, etc). Uses Facebook / Ferrylance Logo Blue (#1877F2) design system.
 
 export function Icon({ children, className = "", filled = false }) {
   return (
@@ -19,13 +16,13 @@ export function Avatar({ src, alt = "", size = 40, className = "" }) {
   const dim = typeof size === "number" ? `${size}px` : size;
   return (
     <div
-      className={`shrink-0 overflow-hidden rounded-full border border-[#c7c4d7] bg-[#d3e4fe] ${className}`}
+      className={`shrink-0 overflow-hidden rounded-full border border-[#D8DADF] bg-[#E7F3FF] ${className}`}
       style={{ width: dim, height: dim }}
     >
       {src ? (
         <img src={src} alt={alt} className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-[#4648d4]">
+        <div className="flex h-full w-full items-center justify-center text-[#1877F2]">
           <Icon className="text-[60%]">person</Icon>
         </div>
       )}
@@ -36,7 +33,7 @@ export function Avatar({ src, alt = "", size = 40, className = "" }) {
 export function Card({ children, className = "" }) {
   return (
     <div
-      className={`rounded-xl border border-[#c7c4d7] bg-white shadow-[0px_4px_12px_-4px_rgba(11,28,48,0.05)] ${className}`}
+      className={`rounded-xl border border-[#D8DADF] bg-white shadow-[0px_2px_8px_-2px_rgba(0,0,0,0.06)] ${className}`}
     >
       {children}
     </div>
@@ -45,8 +42,8 @@ export function Card({ children, className = "" }) {
 
 export function Badge({ children, tone = "neutral", className = "" }) {
   const tones = {
-    neutral: "bg-[#e5eeff] text-[#0b1c30]",
-    primary: "bg-[#4648d4]/10 text-[#4648d4]",
+    neutral: "bg-[#E7F3FF] text-[#050505]",
+    primary: "bg-[#1877F2]/10 text-[#1877F2]",
     success: "bg-[#e3f6ec] text-[#0f7a44]",
     warning: "bg-[#fff4e0] text-[#8a5a00]",
     danger: "bg-[#ffdad6] text-[#93000a]",
@@ -62,7 +59,7 @@ export function PrimaryButton({ children, className = "", ...props }) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-[#4648d4] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3a3cc0] disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1465D8] active:bg-[#0C56C4] disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       {...props}
     >
       {children}
@@ -74,7 +71,7 @@ export function SecondaryButton({ children, className = "", ...props }) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-[#c7c4d7] bg-white px-4 py-2 text-sm font-semibold text-[#0b1c30] transition hover:bg-[#eff4ff] disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-[#D8DADF] bg-white px-4 py-2 text-sm font-semibold text-[#050505] transition hover:bg-[#F0F2F5] disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       {...props}
     >
       {children}
@@ -86,7 +83,7 @@ export function IconButton({ children, className = "", ...props }) {
   return (
     <button
       type="button"
-      className={`flex h-9 w-9 items-center justify-center rounded-full text-[#565e74] transition hover:bg-[#eff4ff] hover:text-[#4648d4] ${className}`}
+      className={`flex h-9 w-9 items-center justify-center rounded-full text-[#65676B] transition hover:bg-[#F0F2F5] hover:text-[#1877F2] ${className}`}
       {...props}
     >
       {children}
@@ -99,10 +96,10 @@ export function PageHeader({ eyebrow, title, description, actions }) {
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         {eyebrow ? (
-          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-[#4648d4]">{eyebrow}</div>
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-[#1877F2]">{eyebrow}</div>
         ) : null}
-        <h1 className="text-2xl font-bold tracking-tight text-[#0b1c30] md:text-[32px]">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-[#565e74]">{description}</p> : null}
+        <h1 className="text-2xl font-bold tracking-tight text-[#050505] md:text-[32px]">{title}</h1>
+        {description ? <p className="mt-1 text-sm text-[#65676B]">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
@@ -112,12 +109,12 @@ export function PageHeader({ eyebrow, title, description, actions }) {
 export function EmptyState({ icon = "inbox", title, description, action }) {
   return (
     <Card className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eff4ff] text-[#4648d4]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E7F3FF] text-[#1877F2]">
         <Icon className="text-[26px]">{icon}</Icon>
       </div>
       <div>
-        <h3 className="text-sm font-bold text-[#0b1c30]">{title}</h3>
-        {description ? <p className="mt-1 max-w-sm text-xs text-[#565e74]">{description}</p> : null}
+        <h3 className="text-sm font-bold text-[#050505]">{title}</h3>
+        {description ? <p className="mt-1 max-w-sm text-xs text-[#65676B]">{description}</p> : null}
       </div>
       {action}
     </Card>
@@ -130,7 +127,7 @@ export function ExternalLinkChip({ link }) {
       href={link.url}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-full border border-[#c7c4d7] bg-white px-3 py-1.5 text-xs font-semibold text-[#0b1c30] transition hover:border-[#4648d4] hover:text-[#4648d4]"
+      className="inline-flex items-center gap-1.5 rounded-full border border-[#D8DADF] bg-white px-3 py-1.5 text-xs font-semibold text-[#050505] transition hover:border-[#1877F2] hover:text-[#1877F2]"
     >
       <Icon className="text-[15px]">{link.icon || "link"}</Icon>
       {link.label}
@@ -140,7 +137,7 @@ export function ExternalLinkChip({ link }) {
 
 export function Loading({ label = "Loading..." }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-16 text-sm text-[#565e74]">
+    <div className="flex items-center justify-center gap-2 py-16 text-sm text-[#65676B]">
       <Icon className="animate-spin text-[18px]">progress_activity</Icon>
       {label}
     </div>

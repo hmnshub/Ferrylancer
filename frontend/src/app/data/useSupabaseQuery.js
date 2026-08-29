@@ -8,23 +8,27 @@ import { supabase } from "../../lib/supabaseClient";
  * — so every screen renders something sensible in a fresh project before any
  * real data exists, without hiding real (configured + populated) data.
  */
-export function useSupabaseQuery(queryFn, deps = [], fallbackData = null) {
-  const [state, setState] = useState({ data: fallbackData, loading: true, error: null });
+export function useSupabaseQuery(queryFn, deps = [], initialData = null) {
+  const [state, setState] = useState({ data: initialData, loading: true, error: null });
 
   const run = async () => {
     if (!supabase) {
-      setState({ data: fallbackData, loading: false, error: null });
+      setState({ data: initialData, loading: false, error: new Error("Supabase is not configured.") });
       return;
     }
     setState((prev) => ({ ...prev, loading: true }));
     try {
       const { data, error } = await queryFn(supabase);
       if (error) throw error;
-      const isEmptyList = Array.isArray(data) && data.length === 0;
-      setState({ data: isEmptyList || data == null ? fallbackData : data, loading: false, error: null });
+      setState({ data, loading: false, error: null });
     } catch (error) {
-      console.error("Supabase query failed:", error);
-      setState({ data: fallbackData, loading: false, error });
+      console.error("Supabase query failed:", {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+      });
+      setState({ data: initialData, loading: false, error });
     }
   };
 
