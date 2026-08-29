@@ -40,7 +40,7 @@ export default function Profile({ session, profile: ownProfile }) {
     [profileId],
     []
   );
-  const visiblePosts = showAllPosts ? posts : posts.slice(0, 3);
+  const visiblePosts = showAllPosts ? posts : posts.slice(0, 1);
   const { data: connectionStats = [] , refetch: refetchConnections } = useSupabaseQuery(
     (sb) => profileId
       ? sb.from("connections").select("id").or(`requester_id.eq.${profileId},recipient_id.eq.${profileId}`).eq("status", "accepted")
@@ -319,15 +319,6 @@ export default function Profile({ session, profile: ownProfile }) {
                  <Icon className="text-[20px] text-[#3d3fc4]">article</Icon>
                  Latest posts
                </h2>
-               {posts.length > 3 ? (
-                 <button
-                   type="button"
-                   onClick={() => setShowAllPosts((value) => !value)}
-                   className="text-xs font-bold text-[#3d3fc4] hover:underline sm:text-sm"
-                 >
-                   {showAllPosts ? "Show fewer" : "See all posts"}
-                 </button>
-               ) : null}
              </div>
              {postsLoading ? (
                <Card className="rounded-2xl border border-[#dce6ff] bg-white p-6 text-sm text-[#767586]">Loading posts…</Card>
@@ -342,6 +333,16 @@ export default function Profile({ session, profile: ownProfile }) {
                  {isOwnProfile ? "Your latest posts will appear here." : "No posts yet."}
                </Card>
              )}
+             {!postsLoading && posts.length > 1 ? (
+               <button
+                 type="button"
+                 onClick={() => setShowAllPosts((value) => !value)}
+                 className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-[#dce6ff] bg-white px-4 py-3 text-sm font-bold text-[#3d3fc4] shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] hover:bg-[#f4f6ff]"
+               >
+                 {showAllPosts ? "Show latest post" : `See all ${posts.length} posts`}
+                 <Icon className="text-[18px]">{showAllPosts ? "expand_less" : "arrow_forward"}</Icon>
+               </button>
+             ) : null}
            </section>
 
            {isClient ? (

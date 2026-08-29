@@ -80,7 +80,12 @@ export default function Feed({ profile, session }) {
       {/* LEFT: mini profile + shortcuts */}
       <aside className="hidden flex-col gap-4 lg:flex lg:col-span-3">
         <Card className="overflow-hidden">
-          <div className="h-20 w-full bg-gradient-to-r from-[#1877F2] to-[#0B2E96]" />
+          <div className="relative h-20 w-full overflow-hidden bg-gradient-to-r from-[#1877F2] to-[#0B2E96]">
+            {profile?.cover_url ? (
+              <img src={profile.cover_url} alt="" className="h-full w-full object-cover" />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1877F2]/25 to-[#0B2E96]/35" />
+          </div>
           <div className="flex flex-col items-center px-6 pb-6 text-center">
             <Avatar src={profile?.avatar_url} size={64} className="-mt-8 border-4 border-white shadow-sm" />
             <h2 className="mt-3 text-base font-bold text-[#050505]">{profile?.full_name || "Your Name"}</h2>
