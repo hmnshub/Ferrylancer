@@ -26,11 +26,15 @@ router.post("/", requireAuth, async (req, res) => {
 
     const { data: project, error: projectError } = await supabaseAdmin
       .from("projects")
-      .select("id, client_id, title, proposals")
+      .select("id, client_id, title, proposals, application_deadline")
       .eq("id", projectId)
       .maybeSingle();
     if (projectError) throw projectError;
     if (!project) return res.status(404).json({ error: "Project not found" });
+    if (project.client_id === req.user.id) return res.status(403).json({ error: "Project owners cannot apply to their own project" });
+    if (project.application_deadline && project.application_deadline < new Date().toISOString().slice(0, 10)) {
+      return res.status(400).json({ error: "Applications are closed for this project" });
+    }
 
     const { data: proposal, error: insertError } = await supabaseAdmin
       .from("proposals")
