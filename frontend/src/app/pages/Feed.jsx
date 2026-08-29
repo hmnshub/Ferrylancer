@@ -87,7 +87,7 @@ export default function Feed({ profile, session }) {
             <div className="absolute inset-0 bg-gradient-to-r from-[#1877F2]/25 to-[#0B2E96]/35" />
           </div>
           <div className="flex flex-col items-center px-6 pb-6 text-center">
-            <Avatar src={profile?.avatar_url} size={64} className="-mt-8 border-4 border-white shadow-sm" />
+            <Avatar src={profile?.avatar_url} size={64} className="relative z-10 -mt-8 border-4 border-white shadow-sm" />
             <h2 className="mt-3 text-base font-bold text-[#050505]">{profile?.full_name || "Your Name"}</h2>
             <p className="mb-3 text-sm text-[#65676B]">{profile?.title || (profile?.role === "client" ? profile?.company_name : "Add your title")}</p>
             <div className="mb-1 flex items-center gap-1 text-xs text-[#65676B]">
