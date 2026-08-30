@@ -260,7 +260,7 @@ export default function ClientOnboarding({ session, onExit }) {
       <div className="min-h-screen bg-[#faf8ff] text-[#131b2e]">
         <OnboardingTopBar brand="Ferrylance" subtitle="Business profile setup" saved={saved} onSkip={handleSkip} onSaveDraft={saveDraft} />
 
-        <MobileStepHeader steps={STEPS} currentStep={currentStep} />
+        <MobileStepHeader steps={STEPS} currentStep={currentStep} setStep={setCurrentStep} />
 
         <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-[1500px]">
           <Stepper

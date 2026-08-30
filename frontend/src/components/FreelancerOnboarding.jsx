@@ -331,7 +331,7 @@ function Stepper({ currentStep, setStep, completion }) {
   );
 }
 
-function MobileStepHeader({ currentStep }) {
+function MobileStepHeader({ currentStep, setStep }) {
   const step = STEPS[currentStep - 1];
 
   return (
@@ -357,6 +357,29 @@ function MobileStepHeader({ currentStep }) {
           style={{ width: `${(currentStep / 8) * 100}%` }}
         />
       </div>
+      <nav className="mt-3 -mx-1 flex gap-1 overflow-x-auto pb-0.5" aria-label="Onboarding steps">
+        {STEPS.map((item) => {
+          const isCurrent = item.id === currentStep;
+          const isCompleted = item.id < currentStep;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setStep(item.id)}
+              aria-current={isCurrent ? "step" : undefined}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                isCurrent
+                  ? "bg-[#3525cd] text-white"
+                  : isCompleted
+                  ? "bg-[#e9e7ff] text-[#3525cd]"
+                  : "bg-[#f3f1f9] text-[#777587]"
+              }`}
+            >
+              {item.id}. {item.title}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
@@ -1999,7 +2022,7 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
           </div>
         </header>
 
-        <MobileStepHeader currentStep={currentStep} />
+        <MobileStepHeader currentStep={currentStep} setStep={setCurrentStep} />
 
         <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-[1500px]">
           <Stepper

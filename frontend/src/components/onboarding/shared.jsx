@@ -260,7 +260,7 @@ export function Stepper({ steps, currentStep, setStep, completion, brand, subtit
   );
 }
 
-export function MobileStepHeader({ steps, currentStep }) {
+export function MobileStepHeader({ steps, currentStep, setStep }) {
   const step = steps[currentStep - 1];
   const pct = Math.round((currentStep / steps.length) * 100);
   return (
@@ -277,6 +277,29 @@ export function MobileStepHeader({ steps, currentStep }) {
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eceaf4]">
         <div className="h-full rounded-full bg-[#3525cd] transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
+      <nav className="mt-3 -mx-1 flex gap-1 overflow-x-auto pb-0.5" aria-label="Onboarding steps">
+        {steps.map((item) => {
+          const isCurrent = item.id === currentStep;
+          const isCompleted = item.id < currentStep;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setStep?.(item.id)}
+              aria-current={isCurrent ? "step" : undefined}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                isCurrent
+                  ? "bg-[#3525cd] text-white"
+                  : isCompleted
+                  ? "bg-[#e9e7ff] text-[#3525cd]"
+                  : "bg-[#f3f1f9] text-[#777587]"
+              }`}
+            >
+              {item.id}. {item.title}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
