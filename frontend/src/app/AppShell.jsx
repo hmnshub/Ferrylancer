@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useSupabaseQuery } from "./data/useSupabaseQuery";
 import { Avatar, Icon } from "./ui/primitives";
@@ -21,7 +21,9 @@ const MOBILE_LINKS = [
 ];
 
 export default function AppShell({ session, profile }) {
+  const location = useLocation();
   const navigate = useNavigate();
+  const isOnboarding = location.pathname === "/app/onboarding";
   const [query, setQuery] = useState("");
   const isClient = profile?.role === "client";
   const [searchFocused, setSearchFocused] = useState(false);
@@ -162,7 +164,7 @@ export default function AppShell({ session, profile }) {
 
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] pb-[76px] pt-[57px] text-[#050505] md:pb-0">
+    <div className={`min-h-screen text-[#050505] ${isOnboarding ? "bg-[#faf8ff]" : "bg-[#F0F2F5] pb-[76px] pt-[57px] md:pb-0"}`}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
@@ -172,7 +174,7 @@ export default function AppShell({ session, profile }) {
       `}</style>
 
       {/* Top nav */}
-      <header className="fixed top-0 z-50 w-full border-b border-[#D8DADF] bg-white shadow-sm">
+      {!isOnboarding ? <header className="fixed top-0 z-50 w-full border-b border-[#D8DADF] bg-white shadow-sm">
         <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">
             <NavLink to="/app" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2]" aria-label="Ferrylance home">
@@ -362,16 +364,16 @@ export default function AppShell({ session, profile }) {
             </div>
           </div>
         </div>
-      </header>
+      </header> : null}
 
-      <ProfileReminderBanner profile={profile} />
+      {!isOnboarding ? <ProfileReminderBanner profile={profile} /> : null}
 
-      <main className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8">
+      <main className={isOnboarding ? "w-full" : "mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8"}>
         <Outlet />
       </main>
 
       {/* Bottom nav (mobile) */}
-      <nav className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around border-t border-[#D8DADF] bg-white px-2 py-2 shadow-lg md:hidden">
+      {!isOnboarding ? <nav className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around border-t border-[#D8DADF] bg-white px-2 py-2 shadow-lg md:hidden">
         {MOBILE_LINKS.map((link) => (
           <NavLink
             key={link.to}
@@ -403,7 +405,7 @@ export default function AppShell({ session, profile }) {
             )}
           </NavLink>
         ))}
-      </nav>
+      </nav> : null}
     </div>
   );
 }
