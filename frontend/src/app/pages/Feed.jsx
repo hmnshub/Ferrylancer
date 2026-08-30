@@ -609,10 +609,29 @@ export function PostCard({ post, profile, session, onPostUpdated }) {
       {/* Post Header */}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex gap-3">
-          <Avatar src={author.avatar_url} size={48} />
-          <div>
-            <h3 className="text-base font-bold leading-tight text-[#050505]">{name}</h3>
-            {title ? <p className="text-sm text-[#65676B]">{title}</p> : null}
+          {post.author_id ? (
+            <NavLink
+              to={`/app/profile/${post.author_id}`}
+              className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-[#1877F2]"
+              aria-label={`View ${name}'s profile`}
+            >
+              <Avatar src={author.avatar_url} size={48} />
+            </NavLink>
+          ) : (
+            <Avatar src={author.avatar_url} size={48} />
+          )}
+          <div className="min-w-0">
+            {post.author_id ? (
+              <NavLink
+                to={`/app/profile/${post.author_id}`}
+                className="block truncate text-base font-bold leading-tight text-[#050505] hover:text-[#1877F2]"
+              >
+                {name}
+              </NavLink>
+            ) : (
+              <h3 className="text-base font-bold leading-tight text-[#050505]">{name}</h3>
+            )}
+            {title ? <p className="truncate text-sm text-[#65676B]">{title}</p> : null}
             <p className="mt-0.5 text-xs text-[#8A8D91]">{timeAgo(post.created_at)}</p>
           </div>
         </div>
