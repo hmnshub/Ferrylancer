@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { apiUpload } from "../../lib/apiClient";
 import { supabase } from "../../lib/supabaseClient";
 import { PostCard } from "./Feed";
@@ -8,6 +8,7 @@ import { Avatar, Card, ExternalLinkChip, Icon, PrimaryButton, SecondaryButton } 
 
 export default function Profile({ session, profile: ownProfile }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const isOwnProfile = !id || id === session?.user?.id;
   const coverInputRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -140,6 +141,37 @@ export default function Profile({ session, profile: ownProfile }) {
     const { error } = await supabase.from("connections").delete().eq("id", connection.id);
     if (error) setActionError(error.message);
     await Promise.all([refetchConnections(), refetchRelationship()]);
+  };
+
+  const openMessage = async () => {
+    if (!supabase || !viewerId || !profileId || viewerId === profileId) return;
+    setActionError("");
+    try {
+      const pair = `and(participant_a.eq.${viewerId},participant_b.eq.${profileId}),and(participant_a.eq.${profileId},participant_b.eq.${viewerId})`;
+      const { data: existing, error: lookupError } = await supabase
+        .from("conversations")
+        .select("id")
+        .or(pair)
+        .limit(1)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      if (existing?.id) {
+        navigate(`/app/messages?conversation=${existing.id}`);
+        return;
+      }
+
+      const { data: conversation, error: createError } = await supabase
+        .from("conversations")
+        .insert({ participant_a: viewerId, participant_b: profileId, updated_at: new Date().toISOString() })
+        .select("id")
+        .single();
+      if (createError) throw createError;
+      navigate(`/app/messages?conversation=${conversation.id}`);
+    } catch (error) {
+      console.error("Opening conversation failed:", error);
+      setActionError(error.message || "Unable to start a conversation right now.");
+    }
   };
 
 
@@ -276,7 +308,7 @@ export default function Profile({ session, profile: ownProfile }) {
           </div>
 
           <div className="mt-4">
-            <ProfileActions isOwnProfile={isOwnProfile} isClient={isClient} viewerId={viewerId} connection={connection} follow={follow} onConnect={toggleConnection} onFollow={toggleFollow} onIgnore={declineConnection} />
+            <ProfileActions isOwnProfile={isOwnProfile} isClient={isClient} viewerId={viewerId} connection={connection} follow={follow} onConnect={toggleConnection} onFollow={toggleFollow} onIgnore={declineConnection} onMessage={openMessage} />
 
           </div>
 
@@ -453,7 +485,7 @@ function PhotoModal({ preview, editable, inputRef, zoom, rotation, saving, error
   </div>;
 }
 
-function ProfileActions({ isOwnProfile, isClient, viewerId, connection, follow, onConnect, onFollow, onIgnore }) {
+function ProfileActions({ isOwnProfile, isClient, viewerId, connection, follow, onConnect, onFollow, onIgnore, onMessage }) {
   const [showMore, setShowMore] = useState(false);
 
   if (isOwnProfile) {
@@ -530,7 +562,7 @@ function ProfileActions({ isOwnProfile, isClient, viewerId, connection, follow, 
       </SecondaryButton>
 
       {/* ---- Message ---- */}
-      <SecondaryButton>
+      <SecondaryButton onClick={onMessage}>
         <Icon className="text-[18px]">chat_bubble_outline</Icon>Message
       </SecondaryButton>
 

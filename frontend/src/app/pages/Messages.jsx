@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { supabase } from "../../lib/supabaseClient";
 import { Avatar, Card, Icon } from "../ui/primitives";
 
 export default function Messages({ session }) {
-  const [activeId, setActiveId] = useState(null);
+  const [searchParams] = useSearchParams();
+  const [activeId, setActiveId] = useState(() => searchParams.get("conversation"));
   const [draft, setDraft] = useState("");
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches);
 
