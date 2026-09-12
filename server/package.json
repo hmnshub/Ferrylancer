@@ -6,7 +6,7 @@
   "description": "Node.js/Express backend for Ferrylance — handles heavy tasks (image processing, feed ranking, search, notification fan-out) that sit next to Supabase (which continues to handle Auth + simple CRUD directly from the frontend).",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js --production"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

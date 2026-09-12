@@ -24,13 +24,14 @@ Use this server when you want:
 ## Running it
 
 ```bash
-cp .env.example .env
-# fill in SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (Project Settings -> API)
 npm install
 npm run dev
 ```
 
-Runs on `http://localhost:4000` (override with `PORT`). Health check:
+`npm run dev` loads `.env.development` and runs on `http://localhost:4001` by
+default. Add the development project's `SUPABASE_SERVICE_ROLE_KEY` to that
+file. Production uses `.env` when started with `npm start` and runs on its
+configured `PORT` (4000 by default). Health check:
 `GET /health`.
 
 ## Auth
