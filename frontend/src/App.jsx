@@ -98,8 +98,16 @@ function App() {
       return;
     }
     setProfileLoading(true);
-    const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-    setProfile(data || null);
+    const [{ data }, { data: skillRows }, { data: serviceRows }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle(),
+      supabase.from("freelancer_skills").select("name").eq("profile_id", session.user.id),
+      supabase.from("freelancer_services").select("id, title, description, price_from, delivery").eq("profile_id", session.user.id),
+    ]);
+    setProfile(data ? {
+      ...data,
+      skills: skillRows?.map((item) => item.name) || [],
+      services: serviceRows || [],
+    } : null);
     setProfileLoading(false);
   }, [session?.user?.id]);
 

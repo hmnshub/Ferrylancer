@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getProfileCompletion } from "../lib/profileCompletion";
+import { runBackgroundTask } from "../lib/backgroundTasks";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useSupabaseQuery } from "./data/useSupabaseQuery";
@@ -29,6 +31,9 @@ export default function AppShell({ session, profile }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [history, setHistory] = useState([]);
   const searchRef = useRef(null);
+  const profileMenuRef = useRef(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [backgroundTasks, setBackgroundTasks] = useState([]);
 
   // Pending incoming connection requests — for the badge on "Network"
   const { data: pendingConnections = [] } = useSupabaseQuery(
@@ -88,6 +93,7 @@ export default function AppShell({ session, profile }) {
   useEffect(() => {
     const handler = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) setSearchFocused(false);
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) setProfileMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -158,10 +164,14 @@ export default function AppShell({ session, profile }) {
   };
 
   const handleLogout = async () => {
+    setProfileMenuOpen(false);
     if (supabase) await supabase.auth.signOut();
     navigate("/");
   };
 
+  const displayName = profile?.full_name || session?.user?.email?.split("@")[0] || "Ferrylance member";
+  const accountTitle = isClient ? profile?.company_name || profile?.title || "Client account" : profile?.title || "Freelancer account";
+  const accountType = isClient ? "Client account" : "Freelancer account";
 
   return (
     <div className={`min-h-screen text-[#050505] ${isOnboarding ? "bg-[#faf8ff]" : "bg-[#F0F2F5] pb-[76px] pt-[57px] md:pb-0"}`}>
@@ -332,35 +342,14 @@ export default function AppShell({ session, profile }) {
             >
               <Icon>notifications</Icon>
             </NavLink>
-            <div className="group relative ml-1">
-              <NavLink to="/app/profile">
-                <Avatar src={profile?.avatar_url} size={36} className="cursor-pointer border border-[#D8DADF] hover:border-[#1877F2]" />
-              </NavLink>
-              <div className="invisible absolute right-0 top-11 w-48 rounded-xl border border-[#D8DADF] bg-white p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
-                <div className="px-3 py-2 text-xs text-[#65676B]">
-                  Signed in as
-                  <div className="truncate text-sm font-semibold text-[#050505]">{session?.user?.email}</div>
-                </div>
-                <NavLink to="/app/onboarding" className="block rounded-lg px-3 py-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]">
-                  Edit profile
-                </NavLink>
-                {isClient ? (
-                  <NavLink to="/app/create" className="block rounded-lg px-3 py-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]">
-                    Post a project
-                  </NavLink>
-                ) : (
-                  <NavLink to="/app/earnings" className="block rounded-lg px-3 py-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]">
-                    Earnings
-                  </NavLink>
-                )}
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40"
-                >
-                  Log out
-                </button>
-              </div>
+            <div ref={profileMenuRef} className="relative ml-1">
+              <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} aria-label="Open account menu" aria-expanded={profileMenuOpen} className={`rounded-full p-0.5 transition focus:outline-none focus:ring-2 focus:ring-[#1877F2]/30 ${profileMenuOpen ? "ring-2 ring-[#1877F2]" : ""}`}><Avatar src={profile?.avatar_url} size={36} className="cursor-pointer border border-[#D8DADF] hover:border-[#1877F2]" /></button>
+              {profileMenuOpen ? <div className="absolute right-0 top-12 z-[100] w-[310px] overflow-hidden rounded-xl border border-[#D8DADF] bg-white shadow-[0_12px_32px_rgba(0,0,0,0.16)]">
+                <div className="border-b border-[#E4E6EB] p-3"><NavLink to="/app/profile" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg p-2 hover:bg-[#F0F2F5]"><Avatar src={profile?.avatar_url} size={48} /><div className="min-w-0 flex-1"><div className="truncate text-[15px] font-bold">{displayName}</div><div className="truncate text-xs text-[#65676B]">{accountTitle}</div><div className="text-[11px] font-medium text-[#1877F2]">View your profile</div></div><Icon className="text-[#8A8D91]">chevron_right</Icon></NavLink></div>
+                <div className="border-b border-[#E4E6EB] px-3 py-2"><div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[#8A8D91]">Account</div><div className="px-2 py-1 text-xs text-[#65676B]"><span className="font-semibold text-[#050505]">{accountType}</span><div className="truncate">{session?.user?.email}</div></div><NavLink to="/app/onboarding" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#65676B]">edit_square</Icon>Edit profile</NavLink><NavLink to="/app/notifications" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#65676B]">notifications</Icon>Notifications</NavLink></div>
+                <div className="border-b border-[#E4E6EB] px-3 py-2"><div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[#8A8D91]">Workspace</div>{isClient ? <><NavLink to="/app/create" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#1877F2]">add_task</Icon>Post a project</NavLink><NavLink to="/app/projects" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#65676B]">work</Icon>Manage projects</NavLink></> : <><NavLink to="/app/discover" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#1877F2]">search</Icon>Find work</NavLink><NavLink to="/app/proposals" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#65676B]">description</Icon>My proposals</NavLink><NavLink to="/app/earnings" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm hover:bg-[#F0F2F5]"><Icon className="text-[#65676B]">account_balance_wallet</Icon>Earnings</NavLink></>}</div>
+                <div className="p-3"><button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40"><Icon>logout</Icon>Sign out</button></div>
+              </div> : null}
             </div>
           </div>
         </div>
@@ -371,6 +360,8 @@ export default function AppShell({ session, profile }) {
       <main className={isOnboarding ? "w-full" : "mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8"}>
         <Outlet />
       </main>
+
+      {backgroundTasks.length ? <BackgroundActivity tasks={backgroundTasks} /> : null}
 
       {/* Bottom nav (mobile) */}
       {!isOnboarding ? <nav className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around border-t border-[#D8DADF] bg-white px-2 py-2 shadow-lg md:hidden">
@@ -433,7 +424,19 @@ function ProfileReminderBanner({ profile }) {
 }
 
 function estimateCompletion(profile) {
-  const step = profile.onboarding_step || 1;
-  const total = profile.role === "client" ? 6 : 8;
-  return Math.min(95, Math.round((step / total) * 100));
+  return getProfileCompletion(profile);
+}
+
+
+function BackgroundActivity({ tasks }) {
+  return (
+    <div className="fixed bottom-5 right-5 z-[120] w-[min(360px,calc(100vw-2rem))] space-y-2">
+      {tasks.map((task) => (
+        <div key={task.id} className="rounded-xl border border-[#D8DADF] bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,.16)]">
+          <div className="flex items-center gap-2"><Icon className="text-[19px] text-[#1877F2]">{task.kind === "delete" ? "delete" : "cloud_upload"}</Icon><span className="min-w-0 flex-1 truncate text-xs font-semibold">{task.label}</span>{task.status === "working" ? <span className="text-[11px] font-bold text-[#1877F2]">{task.progress}%</span> : null}</div>
+          {task.status === "working" ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#E4E6EB]"><div className="h-full rounded-full bg-[#1877F2] transition-all duration-300" style={{ width: `${task.progress}%` }} /></div> : null}
+        </div>
+      ))}
+    </div>
+  );
 }

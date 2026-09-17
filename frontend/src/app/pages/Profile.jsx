@@ -25,9 +25,26 @@ export default function Profile({ session, profile: ownProfile }) {
     [id, session?.user?.id],
     null
   );
-  const profile = viewedProfile || ownProfile;
+  const profileBase = viewedProfile || ownProfile;
+  const profileId = profileBase?.id || id;
+  const { data: skillRows = [] } = useSupabaseQuery(
+    (sb) => profileId
+      ? sb.from("freelancer_skills").select("name").eq("profile_id", profileId)
+      : Promise.resolve({ data: [], error: null }),
+    [profileId],
+    []
+  );
+  const profile = profileBase
+    ? { ...profileBase, skills: skillRows.length ? skillRows.map((skill) => skill.name) : (profileBase.skills || []) }
+    : profileBase;
+  const { data: services = [] } = useSupabaseQuery(
+    (sb) => profileId
+      ? sb.from("freelancer_services").select("id, title, description, price_from, delivery").eq("profile_id", profileId)
+      : Promise.resolve({ data: [], error: null }),
+    [profileId],
+    []
+  );
   const isClient = profile?.role === "client";
-  const profileId = profile?.id || id;
   const viewerId = session?.user?.id;
   const { data: posts = [], loading: postsLoading, refetch: refetchPosts } = useSupabaseQuery(
     (sb) => profileId
@@ -394,12 +411,31 @@ export default function Profile({ session, profile: ownProfile }) {
               ) : null}
             </Card>
           ) : (
+            <>
             <Card className="rounded-2xl border border-[#dce6ff] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] sm:p-6">
               <SectionTitle icon="auto_awesome" title="Skills" />
               <div className="flex flex-wrap gap-2">
                 {(profile?.skills || []).map((skill) => <Tag key={skill}>{skill}</Tag>)}
               </div>
             </Card>
+            {services.length ? (
+              <Card className="rounded-2xl border border-[#dce6ff] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(20,32,90,.5)] sm:p-6">
+                <SectionTitle icon="design_services" title="Services" />
+                <div className="mt-4 space-y-3">
+                  {services.map((service) => (
+                    <div key={service.id} className="rounded-xl border border-[#e5e9f5] bg-[#f8faff] p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <h3 className="text-sm font-bold text-[#0b1c30]">{service.title}</h3>
+                        {service.price_from ? <span className="text-xs font-bold text-[#3d3fc4]">{service.price_from}</span> : null}
+                      </div>
+                      {service.description ? <p className="mt-2 text-xs leading-5 text-[#65676B]">{service.description}</p> : null}
+                      {service.delivery ? <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-[#65676B]"><Icon className="text-[16px]">schedule</Icon>{service.delivery}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ) : null}
+            </>
           )}
 
           {profile?.links?.length ? (

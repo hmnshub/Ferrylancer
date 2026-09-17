@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { DynamicLinks } from "./onboarding/shared";
 import { draftKey, setOnboardingSkipped } from "../lib/onboardingStatus";
 import { isLikelyUrl, normalizeUrl } from "../lib/linkUtils";
+import { getProfileCompletion } from "../lib/profileCompletion";
 
 /*
   Hamro Bridge - Freelancer Onboarding
@@ -1643,28 +1644,26 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
   const userId = session?.user?.id;
   const storageKey = draftKey(userId, "freelancer");
 
-  const profileCompletion = useMemo(() => {
-    const fields = [
-      form.fullName,
-      form.title,
-      form.location,
-      form.shortIntro,
-      form.category,
-      form.specialization,
-      form.experienceYears,
-      form.about,
-      form.availability,
-    ];
-    const filledFields = fields.filter((value) => String(value || "").trim()).length;
-    const fieldScore = (filledFields / fields.length) * 55;
-    const skillsScore = Math.min(skills.length / 4, 1) * 15;
-    const servicesScore = Math.min(services.length / 2, 1) * 10;
-    const portfolioScore = Math.min(portfolio.length / 2, 1) * 10;
-    const experienceScore = Math.min(experience.length / 1, 1) * 5;
-    const linksScore = links.length ? 5 : 0;
-
-    return Math.round(fieldScore + skillsScore + servicesScore + portfolioScore + experienceScore + linksScore);
-  }, [form, skills, services, portfolio, experience, links]);
+  const profileCompletion = useMemo(() => getProfileCompletion({
+    role: "freelancer",
+    full_name: form.fullName,
+    title: form.title,
+    location: form.location,
+    short_intro: form.shortIntro,
+    category: form.category,
+    specialization: form.specialization,
+    experience_years: form.experienceYears,
+    about: form.about,
+    availability: form.availability,
+    skills,
+    services,
+    portfolio,
+    experience,
+    education,
+    certifications,
+    links,
+    avatar_url: profilePhoto?.url,
+  }), [form, skills, services, links, profilePhoto]);
 
   useEffect(() => {
     const loadSavedProfile = async () => {
@@ -1697,11 +1696,11 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
         if (profile.onboarding_step) setCurrentStep(profile.onboarding_step);
       }
 
-      const { data: skillsData } = await supabase.from("freelancer_skills").select("skill_name").eq("user_id", user.id);
-      if (skillsData) setSkills(skillsData.map((item) => item.skill_name));
+      const { data: skillsData } = await supabase.from("freelancer_skills").select("name").eq("profile_id", user.id);
+      if (skillsData) setSkills(skillsData.map((item) => item.name));
 
-      const { data: servicesData } = await supabase.from("services").select("id, name, description, starting_price, delivery").eq("user_id", user.id);
-      if (servicesData) setServices(servicesData.map((item) => ({ id: item.id, name: item.name, description: item.description, startingPrice: item.starting_price, delivery: item.delivery })));
+      const { data: servicesData } = await supabase.from("freelancer_services").select("id, title, description, price_from, delivery").eq("profile_id", user.id);
+      if (servicesData) setServices(servicesData.map((item) => ({ id: item.id, name: item.title, description: item.description, startingPrice: item.price_from, delivery: item.delivery })));
 
       const { data: experienceData } = await supabase.from("experiences").select("id, role, company, start_date, end_date, description").eq("user_id", user.id);
       if (experienceData) setExperience(experienceData.map((item) => ({ id: item.id, role: item.role, company: item.company, start: item.start_date, end: item.end_date, description: item.description })));
@@ -1790,7 +1789,7 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
     const { error: skillsDeleteError } = await supabase
       .from("freelancer_skills")
       .delete()
-      .eq("user_id", user.id);
+      .eq("profile_id", user.id);
     if (skillsDeleteError) {
       console.error("Skills delete error:", skillsDeleteError);
       alert(`Unable to save skills: ${skillsDeleteError.message}`);
@@ -1799,7 +1798,7 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
 
     if (skills.length > 0) {
       const { error: skillsError } = await supabase.from("freelancer_skills").insert(
-        skills.map((skill) => ({ user_id: user.id, skill_name: skill }))
+        skills.map((skill) => ({ profile_id: user.id, name: skill }))
       );
       if (skillsError) {
         console.error("Skills save error:", skillsError);
@@ -1809,9 +1808,9 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
     }
 
     const { error: servicesDeleteError } = await supabase
-      .from("services")
+      .from("freelancer_services")
       .delete()
-      .eq("user_id", user.id);
+      .eq("profile_id", user.id);
     if (servicesDeleteError) {
       console.error("Services delete error:", servicesDeleteError);
       alert(`Unable to save services: ${servicesDeleteError.message}`);
@@ -1819,12 +1818,12 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
     }
 
     if (services.length > 0) {
-      const { error: servicesError } = await supabase.from("services").insert(
+      const { error: servicesError } = await supabase.from("freelancer_services").insert(
         services.map((service) => ({
-          user_id: user.id,
-          name: service.name,
+          profile_id: user.id,
+          title: service.name,
           description: service.description,
-          starting_price: service.startingPrice,
+          price_from: service.startingPrice,
           delivery: service.delivery,
         }))
       );
@@ -1845,12 +1844,12 @@ export default function FreelancerOnboarding({ session, onExit } = {}) {
       const { error: profileError } = await supabase.from("profiles").upsert({ id: user.id, role: "freelancer", full_name: form.fullName, title: form.title, location: form.location, short_intro: form.shortIntro, category: form.category, specialization: form.specialization, experience_years: form.experienceYears, about: form.about, availability: form.availability, links, onboarding_step: stepToSave, profile_completed: completed, updated_at: new Date().toISOString() });
       if (profileError) throw profileError;
       if (stepToSave === 4) {
-        const { error } = await supabase.from("freelancer_skills").delete().eq("user_id", user.id);
+        const { error } = await supabase.from("freelancer_skills").delete().eq("profile_id", user.id);
         if (error) throw error;
-        if (skills.length) { const { error: insertError } = await supabase.from("freelancer_skills").insert(skills.map((skill) => ({ user_id: user.id, skill_name: skill }))); if (insertError) throw insertError; }
-        const { error: serviceDeleteError } = await supabase.from("services").delete().eq("user_id", user.id);
+        if (skills.length) { const { error: insertError } = await supabase.from("freelancer_skills").insert(skills.map((skill) => ({ profile_id: user.id, name: skill }))); if (insertError) throw insertError; }
+        const { error: serviceDeleteError } = await supabase.from("freelancer_services").delete().eq("profile_id", user.id);
         if (serviceDeleteError) throw serviceDeleteError;
-        if (services.length) { const { error: serviceError } = await supabase.from("services").insert(services.map((s) => ({ user_id: user.id, name: s.name, description: s.description, starting_price: s.startingPrice, delivery: s.delivery }))); if (serviceError) throw serviceError; }
+        if (services.length) { const { error: serviceError } = await supabase.from("freelancer_services").insert(services.map((s) => ({ profile_id: user.id, title: s.name, description: s.description, price_from: s.startingPrice, delivery: s.delivery }))); if (serviceError) throw serviceError; }
       }
       if (stepToSave === 6) {
         const { error } = await supabase.from("experiences").delete().eq("user_id", user.id);

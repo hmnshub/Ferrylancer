@@ -61,6 +61,39 @@ create table if not exists public.profiles (
 -- Existing profile tables need this migration to enable cover photos.
 alter table public.profiles add column if not exists cover_url text;
 
+-- Create an application profile automatically for every new Auth user.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, role)
+  values (
+    new.id,
+    case when new.raw_user_meta_data ->> 'role' = 'client' then 'client' else 'freelancer' end
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Backfill profiles for Auth users created before the trigger existed.
+insert into public.profiles (id, role)
+select
+  u.id,
+  case when u.raw_user_meta_data ->> 'role' = 'client' then 'client' else 'freelancer' end
+from auth.users u
+left join public.profiles p on p.id = u.id
+where p.id is null
+on conflict (id) do nothing;
+
+
 -- ---------------------------------------------------------------------
 -- freelancer sub-sections (kept as separate tables so the onboarding
 -- "Skills & Services", "Portfolio", "Experience" steps map 1:1 to rows
@@ -78,8 +111,10 @@ create table if not exists public.freelancer_services (
   profile_id uuid not null references public.profiles (id) on delete cascade,
   title text not null,
   description text,
-  price_from text
+  price_from text,
+  delivery text
 );
+alter table public.freelancer_services add column if not exists delivery text;
 
 create table if not exists public.portfolio_items (
   id uuid primary key default uuid_generate_v4(),
@@ -490,3 +525,34 @@ on conflict (id) do nothing;
 insert into storage.buckets (id, name, public)
 values ('portfolio-images', 'portfolio-images', true)
 on conflict (id) do nothing;
+
+
+-- Storage object policies: authenticated users may manage files inside
+-- their own user-id folder; public buckets remain publicly readable.
+drop policy if exists "authenticated users upload own files" on storage.objects;
+create policy "authenticated users upload own files"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id in ('avatars', 'post-images', 'portfolio-images')
+  and (storage.foldername(name))[1] = (select auth.uid()::text)
+);
+
+drop policy if exists "authenticated users update own files" on storage.objects;
+create policy "authenticated users update own files"
+on storage.objects for update to authenticated
+using (
+  bucket_id in ('avatars', 'post-images', 'portfolio-images')
+  and (storage.foldername(name))[1] = (select auth.uid()::text)
+)
+with check (
+  bucket_id in ('avatars', 'post-images', 'portfolio-images')
+  and (storage.foldername(name))[1] = (select auth.uid()::text)
+);
+
+drop policy if exists "authenticated users delete own files" on storage.objects;
+create policy "authenticated users delete own files"
+on storage.objects for delete to authenticated
+using (
+  bucket_id in ('avatars', 'post-images', 'portfolio-images')
+  and (storage.foldername(name))[1] = (select auth.uid()::text)
+);

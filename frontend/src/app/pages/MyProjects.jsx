@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { runBackgroundTask } from "../../lib/backgroundTasks";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { Badge, Card, EmptyState, PageHeader, PrimaryButton } from "../ui/primitives";
 
@@ -32,12 +33,18 @@ export default function MyProjects({ profile, session }) {
   const deleteProject = async (project) => {
     if (!window.confirm(`Delete “${project.title}”? This will also remove its proposals and cannot be undone.`)) return;
     setDeleteError("");
-    const { error } = await supabase.from("projects").delete().eq("id", project.id);
-    if (error) {
-      setDeleteError(error.message || "Unable to delete this project.");
-      return;
-    }
     setDeletedIds((ids) => [...ids, project.id]);
+    runBackgroundTask({
+      label: "Deleting project",
+      kind: "delete",
+      run: async () => {
+        const { error } = await supabase.from("projects").delete().eq("id", project.id);
+        if (error) throw error;
+      },
+    }).catch((error) => {
+      setDeletedIds((ids) => ids.filter((id) => id !== project.id));
+      setDeleteError(error.message || "Unable to delete this project.");
+    });
   };
 
   return (

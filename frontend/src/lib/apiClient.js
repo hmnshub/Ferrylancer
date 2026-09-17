@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { runBackgroundTask } from "./backgroundTasks";
 
 // Base URL of the Node.js backend (see /server). Configure via
 // VITE_API_BASE_URL in your .env — defaults to the local dev server.
@@ -38,12 +39,20 @@ export async function apiDelete(path) {
 
 // Uploads (avatar / cover / post / portfolio images) go through multipart/form-data
 // so the backend can resize+compress with sharp before storing in Supabase Storage.
-export async function apiUpload(file, kind) {
-  const headers = await authHeaders();
-  const form = new FormData();
-  form.append("file", file);
-  form.append("kind", kind);
-  const res = await fetch(`${API_BASE_URL}/api/uploads`, { method: "POST", headers, body: form });
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  return res.json();
+export function apiUpload(file, kind) {
+  return runBackgroundTask({
+    label: `Uploading ${kind.replace("-", " ")}` ,
+    kind: "upload",
+    run: async (update) => {
+      update(20, "Preparing upload");
+      const headers = await authHeaders();
+      const form = new FormData();
+      form.append("file", file);
+      form.append("kind", kind);
+      const res = await fetch(`${API_BASE_URL}/api/uploads`, { method: "POST", headers, body: form });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      update(95, "Finishing upload");
+      return res.json();
+    },
+  });
 }

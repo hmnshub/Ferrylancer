@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { getProfileCompletion } from "../../lib/profileCompletion";
 import { NavLink } from "react-router-dom";
 import { apiDelete, apiUpload } from "../../lib/apiClient";
+import { runBackgroundTask } from "../../lib/backgroundTasks";
 import { compressMultipleImages } from "../../lib/imageCompressor";
 import { detectLinkMeta, normalizeUrl } from "../../lib/linkUtils";
 import { supabase } from "../../lib/supabaseClient";
@@ -265,6 +267,7 @@ export function PostCard({ post, profile, session, onPostUpdated }) {
   const [editPhotos, setEditPhotos] = useState([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [removed, setRemoved] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const menuRef = useRef(null);
@@ -551,20 +554,24 @@ export function PostCard({ post, profile, session, onPostUpdated }) {
     }
   };
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await apiDelete(`/api/posts/${post.id}`);
-
-      setShowDeleteConfirm(false);
-      if (onPostUpdated) onPostUpdated();
-    } catch (err) {
+  const handleDelete = () => {
+    setShowDeleteConfirm(false);
+    setRemoved(true);
+    runBackgroundTask({
+      label: "Deleting post",
+      kind: "delete",
+      run: async () => {
+        await apiDelete(`/api/posts/${post.id}`);
+        if (onPostUpdated) onPostUpdated();
+      },
+    }).catch((err) => {
       console.error("Delete post failed:", err);
-      alert(err?.message || "Failed to delete post.");
-    } finally {
-      setDeleting(false);
-    }
+      setRemoved(false);
+      setToast(err?.message || "Failed to delete post.");
+    });
   };
+
+  if (removed) return null;
 
   return (
     <Card className="relative p-6">
@@ -1028,7 +1035,5 @@ function timeAgo(iso) {
 }
 
 function estimateCompletion(profile) {
-  const step = profile.onboarding_step || 1;
-  const total = profile.role === "client" ? 6 : 8;
-  return Math.min(95, Math.round((step / total) * 100));
+  return getProfileCompletion(profile);
 }

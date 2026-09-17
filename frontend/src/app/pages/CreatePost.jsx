@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiUpload } from "../../lib/apiClient";
 import { compressMultipleImages } from "../../lib/imageCompressor";
+import { CROP_OPTIONS, closestCropOption, cropImageToAspect } from "../../lib/imageCropper";
 import { supabase } from "../../lib/supabaseClient";
 import { Card, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
@@ -16,7 +17,11 @@ export default function CreatePost({ session, profile }) {
   const [deadline, setDeadline] = useState("");
   const [applicationDeadline, setApplicationDeadline] = useState("");
   const [skills, setSkills] = useState("");
-  const [selectedPhotos, setSelectedPhotos] = useState([]); // [{ file, url }]
+  const [selectedPhotos, setSelectedPhotos] = useState([]); // [{ file, url, crop } ]
+  const [singleCrop, setSingleCrop] = useState("auto");
+  const [collageLayout, setCollageLayout] = useState("auto");
+  const [photoCrops, setPhotoCrops] = useState({});
+  const [selectedCropPhoto, setSelectedCropPhoto] = useState(0);
   const [externalLink, setExternalLink] = useState("");
   const [posting, setPosting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
@@ -29,6 +34,7 @@ export default function CreatePost({ session, profile }) {
     const newPhotos = files.map((file) => ({
       file,
       url: URL.createObjectURL(file),
+      crop: "auto",
     }));
     setSelectedPhotos((prev) => [...prev, ...newPhotos]);
     e.target.value = "";
@@ -36,6 +42,21 @@ export default function CreatePost({ session, profile }) {
 
   const handleRemovePhoto = (index) => {
     setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const getTileCrop = (index, count) => {
+    if (count === 1) return singleCrop;
+    if (photoCrops[index]) return photoCrops[index];
+    if (collageLayout === "square") return "square";
+    if (collageLayout === "portrait") return "portrait";
+    if (count === 2 || count === 4) return "square";
+    return index === 0 ? "portrait" : "square";
+  };
+
+  const getCropRatio = (id) => {
+    if (id === "portrait") return 4 / 5;
+    if (id === "landscape") return 1.91;
+    return 1;
   };
 
   const handleSubmit = async () => {
@@ -46,12 +67,27 @@ export default function CreatePost({ session, profile }) {
 
     try {
       if (supabase && session?.user?.id) {
+        const role = profile?.role || (session.user.user_metadata?.role === "client" ? "client" : "freelancer");
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          { id: session.user.id, role },
+          { onConflict: "id", ignoreDuplicates: true }
+        );
+        if (profileError) throw profileError;
+
         let uploadedUrls = [];
 
         if (selectedPhotos.length > 0 && mode !== "project") {
           setUploadStatus(`Optimizing ${selectedPhotos.length} photo${selectedPhotos.length > 1 ? "s" : ""}...`);
           const rawFiles = selectedPhotos.map((p) => p.file).filter(Boolean);
-          const compressedFiles = await compressMultipleImages(rawFiles);
+          const croppedFiles = await Promise.all(rawFiles.map(async (file, index) => {
+            const cropId = getTileCrop(index, rawFiles.length);
+            if (cropId === "auto") {
+              const image = await new Promise((resolve, reject) => { const item = new Image(); const url = URL.createObjectURL(file); item.onload = () => { URL.revokeObjectURL(url); resolve(item); }; item.onerror = reject; item.src = url; });
+              return cropImageToAspect(file, closestCropOption(image.width, image.height).ratio);
+            }
+            return cropImageToAspect(file, getCropRatio(cropId));
+          }));
+          const compressedFiles = await compressMultipleImages(croppedFiles);
 
           setUploadStatus(`Uploading ${compressedFiles.length} photo${compressedFiles.length > 1 ? "s" : ""}...`);
           uploadedUrls = await Promise.all(
@@ -122,11 +158,15 @@ export default function CreatePost({ session, profile }) {
   };
 
   return (
-    <div className="mx-auto max-w-xl">
-      <h1 className="mb-4 text-2xl font-bold text-[#050505]">{isClient && mode === "project" ? "Post a Project" : "Create Post"}</h1>
+    <div className="mx-auto min-h-[calc(100vh-7rem)] max-w-[680px] py-2 sm:py-6">
+      <div className="overflow-hidden rounded-3xl border border-[#D8DADF] bg-white shadow-[0_18px_50px_rgba(20,32,90,.12)]">
+      <header className="flex items-center justify-between border-b border-[#EEF0F4] px-5 py-4 sm:px-7">
+        <h1 className="text-xl font-bold tracking-tight text-[#050505]">{isClient && mode === "project" ? "Post a Project" : "Create Post"}</h1>
+        <button type="button" onClick={() => navigate(-1)} aria-label="Close create post" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F2F5] text-[#65676B] transition hover:bg-[#E4E6EB] hover:text-[#050505]"><Icon>close</Icon></button>
+      </header>
 
       {isClient ? (
-        <div className="mb-4 flex gap-1 rounded-lg border border-[#D8DADF] bg-white p-1">
+        <div className="mx-5 mt-5 flex gap-1 rounded-xl border border-[#D8DADF] bg-[#F7F8FA] p-1 sm:mx-7 sm:mt-7">
           <button
             onClick={() => setMode("post")}
             className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition ${mode === "post" ? "bg-[#1877F2] text-white" : "text-[#65676B]"}`}
@@ -142,7 +182,7 @@ export default function CreatePost({ session, profile }) {
         </div>
       ) : null}
 
-      <Card className="p-5">
+      <Card className="rounded-none border-0 p-5 shadow-none sm:p-7">
         {mode === "project" ? (
           <div className="mb-5 grid gap-4 sm:grid-cols-2">
             <label className="sm:col-span-2">
@@ -200,37 +240,42 @@ export default function CreatePost({ session, profile }) {
                 Add more
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {selectedPhotos.map((photo, i) => (
-                <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-[#D8DADF] bg-black/5">
-                  <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(i)}
-                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white shadow-md transition hover:bg-black/90"
-                    title="Remove photo"
-                  >
-                    <Icon className="text-[14px]">close</Icon>
-                  </button>
+            {selectedPhotos.length === 1 ? (
+              <div className="space-y-3">
+                <div className={`relative overflow-hidden rounded-lg border border-[#D8DADF] bg-black/5 ${singleCrop === "portrait" ? "aspect-[4/5]" : singleCrop === "landscape" ? "aspect-[1.91/1]" : "aspect-square"}`}>
+                  <img src={selectedPhotos[0].url} alt="Selected photo" className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => handleRemovePhoto(0)} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white" title="Remove photo"><Icon className="text-[15px]">close</Icon></button>
                 </div>
-              ))}
-            </div>
+                <div className="flex flex-wrap items-center gap-2"><span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-[#65676B]">Crop</span>{CROP_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => setSingleCrop(option.id)} className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-semibold ${singleCrop === option.id ? "border-[#1877F2] bg-[#E7F3FF] text-[#1877F2]" : "border-[#D8DADF] text-[#65676B] hover:bg-white"}`}><Icon className="text-[15px]">{option.icon}</Icon>{option.label}</button>)}</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className={`grid gap-1 overflow-hidden rounded-lg ${selectedPhotos.length === 3 && collageLayout === "auto" ? "grid-cols-2 grid-rows-2" : "grid-cols-2"}`}>
+                  {selectedPhotos.map((photo, i) => <div key={i} style={{ aspectRatio: getCropRatio(getTileCrop(i, selectedPhotos.length)) }} className={`group relative min-h-24 overflow-hidden bg-black/5 ${selectedPhotos.length === 3 && i === 0 && collageLayout === "auto" ? "row-span-2" : ""}`}><img src={photo.url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" /><button type="button" onClick={() => handleRemovePhoto(i)} className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white shadow-md"><Icon className="text-[15px]">close</Icon></button></div>)}
+                </div>
+                <div className="flex flex-wrap items-center gap-2"><span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-[#65676B]">Arrange</span>{[{ id: "auto", label: "Balanced" }, { id: "square", label: "Square tiles" }, { id: "portrait", label: "Portrait tiles" }].map((option) => <button key={option.id} type="button" onClick={() => setCollageLayout(option.id)} className={`rounded-full border px-2.5 py-1.5 text-xs font-semibold ${collageLayout === option.id ? "border-[#1877F2] bg-[#E7F3FF] text-[#1877F2]" : "border-[#D8DADF] text-[#65676B] hover:bg-white"}`}>{option.label}</button>)}</div>
+                <div className="flex flex-wrap items-center gap-2"><span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-[#65676B]">Crop</span>{selectedPhotos.map((_, index) => <button key={index} type="button" onClick={() => setSelectedCropPhoto(index)} className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${selectedCropPhoto === index ? "border-[#1877F2] bg-[#E7F3FF] text-[#1877F2]" : "border-[#D8DADF] text-[#65676B]"}`}>Photo {index + 1}</button>)}</div>
+                <div className="flex flex-wrap gap-2">{CROP_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => setPhotoCrops((current) => ({ ...current, [selectedCropPhoto]: option.id }))} className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-semibold ${(photoCrops[selectedCropPhoto] || getTileCrop(selectedCropPhoto, selectedPhotos.length)) === option.id ? "border-[#1877F2] bg-[#E7F3FF] text-[#1877F2]" : "border-[#D8DADF] text-[#65676B]"}`}><Icon className="text-[15px]">{option.icon}</Icon>{option.label}</button>)}</div>
+                <p className="text-[11px] text-[#65676B]">Choose an arrangement, then choose a crop for each photo.</p>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="mt-3">
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#D8DADF] px-3.5 py-2.5">
+          <Icon className="text-[18px] text-[#8A8D91]">link</Icon>
           <input
             value={externalLink}
             onChange={(e) => setExternalLink(e.target.value)}
             placeholder="Optional: add a YouTube/Instagram link for video, or any other link"
-            className="w-full rounded-lg border border-[#D8DADF] px-3.5 py-2.5 text-sm outline-none placeholder:text-[#8A8D91] focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#8A8D91]"
           />
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-[#E4E6EB] pt-3">
-          <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 text-sm font-semibold text-[#65676B] hover:text-[#1877F2]">
-            <Icon className="text-[#45BD62]">imagesmode</Icon>
-            {selectedPhotos.length > 0 ? "Add More Photos" : "Add Photos"}
+        <div className="mt-4 border-t border-[#E4E6EB] pt-3">
+          <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center justify-between rounded-xl px-2 py-2.5 text-sm font-semibold text-[#3C4043] transition hover:bg-[#F0F2F5]">
+            <span className="flex items-center gap-2"><Icon className="text-[#45BD62]">imagesmode</Icon>{selectedPhotos.length > 0 ? "Add More Photos" : "Add Photos"}</span>
+            <Icon className="text-[#8A8D91]">chevron_right</Icon>
           </button>
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAddPhotos} />
         </div>
@@ -245,11 +290,12 @@ export default function CreatePost({ session, profile }) {
 
       {error ? <p className="mt-3 rounded-lg border border-[#f3b5b5] bg-[#fff1f1] px-3 py-2 text-sm font-semibold text-[#ba1a1a]">{error}</p> : null}
 
-      <div className="mt-4 flex justify-end gap-2">
-        <SecondaryButton onClick={() => navigate(-1)}>Cancel</SecondaryButton>
-        <PrimaryButton onClick={handleSubmit} disabled={posting || !content.trim() || (mode === "project" && (!projectTitle.trim() || !budget.trim() || !estimatedTime.trim() || !deadline || !applicationDeadline))}>
+      <div className="flex justify-end gap-2 border-t border-[#EEF0F4] bg-[#FCFDFE] px-5 py-4 sm:px-7">
+        <SecondaryButton onClick={() => navigate(-1)} className="rounded-xl px-5">Cancel</SecondaryButton>
+        <PrimaryButton onClick={handleSubmit} className="rounded-xl px-5" disabled={posting || !content.trim() || (mode === "project" && (!projectTitle.trim() || !budget.trim() || !estimatedTime.trim() || !deadline || !applicationDeadline))}>
           {posting ? "Posting..." : mode === "project" ? "Post Project" : "Post"}
         </PrimaryButton>
+      </div>
       </div>
     </div>
   );
