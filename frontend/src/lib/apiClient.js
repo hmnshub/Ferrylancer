@@ -7,15 +7,37 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000
 
 async function authHeaders() {
   if (!supabase) return {};
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token;
+  let { data } = await supabase.auth.getSession();
+  let token = data?.session?.access_token;
+
+  // getSession can briefly return an expired session while the auth client is
+  // refreshing it (especially after a Vite HMR reload). Refresh once before
+  // sending a protected request so the API does not see a stale bearer token.
+  if (!token || (data?.session?.expires_at && data.session.expires_at * 1000 <= Date.now() + 5000)) {
+    const refreshed = await supabase.auth.refreshSession();
+    data = refreshed.data;
+    token = data?.session?.access_token;
+  }
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function throwApiError(res, fallback) {
+  let message = fallback;
+  try {
+    const body = await res.json();
+    if (body?.error) message = body.error;
+  } catch {
+    // Keep the status-based fallback when the response is not JSON.
+  }
+  const error = new Error(message);
+  error.status = res.status;
+  throw error;
 }
 
 export async function apiGet(path) {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE_URL}${path}`, { headers });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  if (!res.ok) await throwApiError(res, `GET ${path} failed: ${res.status}`);
   return res.json();
 }
 
@@ -26,14 +48,14 @@ export async function apiPost(path, body) {
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
+  if (!res.ok) await throwApiError(res, `POST ${path} failed: ${res.status}`);
   return res.json();
 }
 
 export async function apiDelete(path) {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE_URL}${path}`, { method: "DELETE", headers });
-  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
+  if (!res.ok) await throwApiError(res, `DELETE ${path} failed: ${res.status}`);
   return res.json();
 }
 
@@ -50,7 +72,7 @@ export function apiUpload(file, kind) {
       form.append("file", file);
       form.append("kind", kind);
       const res = await fetch(`${API_BASE_URL}/api/uploads`, { method: "POST", headers, body: form });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      if (!res.ok) await throwApiError(res, `Upload failed: ${res.status}`);
       update(95, "Finishing upload");
       return res.json();
     },

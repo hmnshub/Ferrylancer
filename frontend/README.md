@@ -33,6 +33,11 @@ VITE_API_BASE_URL=https://<your-deployed-api-domain>
 
 `VITE_API_BASE_URL` must be the public URL of the deployed Express server; do not leave it as `http://localhost:4000`.
 
+For local development, the frontend uses `frontend/.env.development` and the
+backend uses `server/.env.development`, which point at the `qgtd...` Supabase
+project on port 4001. Run the complete `supabase/schema.sql` in that same
+project's SQL Editor; the storage and table RLS policies are project-specific.
+
 The `public/_redirects` file keeps React Router routes working after a browser refresh on Cloudflare Pages.
 
 The current Express server is not a static Pages deployment. Deploy `server` separately on a Node.js host, then set its environment variables:

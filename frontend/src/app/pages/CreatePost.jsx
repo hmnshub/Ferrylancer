@@ -96,6 +96,12 @@ export default function CreatePost({ session, profile }) {
                 const res = await apiUpload(file, "post-image");
                 return res?.url;
               } catch (apiErr) {
+                // A 401 means the API rejected the current auth session. A
+                // storage fallback cannot repair that and usually produces a
+                // second, misleading RLS error in the browser console.
+                if (apiErr?.status === 401) {
+                  throw new Error("Your session expired. Please sign in again and retry the upload.");
+                }
                 console.warn(`Backend upload failed for image #${idx + 1}, falling back to direct Supabase Storage:`, apiErr);
                 const fileExt = file.name?.split(".").pop() || "webp";
                 const fileName = `${session.user.id}/${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
