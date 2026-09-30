@@ -105,7 +105,11 @@ export default function Discover({ session, profile: ownProfile }) {
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-[#050505] md:text-[32px]">Discover</h1>
-          <p className="mt-1 text-sm text-[#65676B]">Find work opportunities or build your network.</p>
+          <p className="mt-1 text-sm text-[#65676B]">
+            {ownProfile?.role === "freelancer"
+              ? "Browse available projects by type and find your next opportunity."
+              : "Find talent, projects, or build your network."}
+          </p>
         </div>
 
         {/* Tab selection */}
@@ -164,7 +168,7 @@ export default function Discover({ session, profile: ownProfile }) {
                   </button>
                 ) : null}
               </div>
-              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-[#65676B]">Category</div>
+              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-[#65676B]">Project type</div>
               <div className="flex flex-col gap-2 py-2">
                 {CATEGORIES.map((cat) => (
                   <label key={cat} className="flex items-center gap-2 text-sm text-[#050505]">

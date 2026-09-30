@@ -54,7 +54,7 @@ export default function MyProjects({ profile, session }) {
         description={isClient ? "Projects you've posted and are managing." : "Projects you're actively working on."}
         actions={
           isClient ? (
-            <NavLink to="/app/create">
+            <NavLink to="/app/create?mode=project">
               <PrimaryButton>+ Post a Project</PrimaryButton>
             </NavLink>
           ) : null
@@ -68,7 +68,7 @@ export default function MyProjects({ profile, session }) {
           title={isClient ? "You haven't posted any projects yet" : "No active projects yet"}
           description={isClient ? "Post your first project to start receiving proposals." : "Browse Discover to find your next project."}
           action={
-            <NavLink to={isClient ? "/app/create" : "/app/discover"}>
+            <NavLink to={isClient ? "/app/create?mode=project" : "/app/discover"}>
               <PrimaryButton>{isClient ? "Post a Project" : "Find Work"}</PrimaryButton>
             </NavLink>
           }

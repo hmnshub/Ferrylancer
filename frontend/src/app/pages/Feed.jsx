@@ -11,6 +11,7 @@ import { PhotoGrid } from "../ui/PhotoGrid";
 import { Avatar, Card, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
 export default function Feed({ profile, session }) {
+  const isClient = (profile?.role || session?.user?.user_metadata?.role) === "client";
   const [connectionStates, setConnectionStates] = useState({});
   const { data: posts = [], refetch: refetchPosts } = useSupabaseQuery(
     (sb) =>
@@ -113,18 +114,13 @@ export default function Feed({ profile, session }) {
 
         <Card className="p-4">
           <ul className="flex flex-col gap-1">
-            <li>
-              <NavLink to="/app/discover" className="group flex items-center gap-3 rounded-lg p-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]">
-                <Icon className="text-[#65676B] group-hover:text-[#1877F2]">bookmark</Icon>
-                Saved Projects
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/app/proposals" className="group flex items-center gap-3 rounded-lg p-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]">
-                <Icon className="text-[#65676B] group-hover:text-[#1877F2]">send</Icon>
-                My Proposals
-              </NavLink>
-            </li>
+            {isClient ? <>
+              <li><NavLink to="/app/projects" className="group flex items-center gap-3 rounded-lg p-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]"><Icon className="text-[#65676B] group-hover:text-[#1877F2]">work</Icon>Posted Projects</NavLink></li>
+              <li><NavLink to="/app/proposals/received" className="group flex items-center gap-3 rounded-lg p-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]"><Icon className="text-[#65676B] group-hover:text-[#1877F2]">inbox</Icon>Proposals Received</NavLink></li>
+            </> : <>
+              <li><NavLink to="/app/discover" className="group flex items-center gap-3 rounded-lg p-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]"><Icon className="text-[#65676B] group-hover:text-[#1877F2]">bookmark</Icon>Saved Projects</NavLink></li>
+              <li><NavLink to="/app/proposals" className="group flex items-center gap-3 rounded-lg p-2 text-sm font-medium text-[#050505] hover:bg-[#F0F2F5]"> <Icon className="text-[#65676B] group-hover:text-[#1877F2]">send</Icon>My Proposals</NavLink></li>
+            </>}
           </ul>
         </Card>
       </aside>
@@ -135,23 +131,25 @@ export default function Feed({ profile, session }) {
           <div className="mb-3 flex gap-3">
             <Avatar src={profile?.avatar_url} size={40} />
             <NavLink
-              to="/app/create"
+              to="/app/create?mode=post"
               className="flex flex-1 items-center rounded-full border border-[#D8DADF] bg-[#F0F2F5] px-4 text-left text-sm text-[#65676B] hover:bg-[#E4E6EB]"
             >
-              Start a post...
+              {isClient ? "Start a post..." : "Showcase your work..."}
             </NavLink>
           </div>
           <div className="flex flex-wrap items-center gap-1 border-t border-[#E4E6EB] pt-3">
-            <NavLink to="/app/create" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
+            <NavLink to="/app/create?mode=post" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
               <Icon className="text-[#1877F2]">edit_document</Icon>
               Share an update
             </NavLink>
-            <NavLink to="/app/create" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
-              <Icon className="text-[#45BD62]">imagesmode</Icon>
-              Showcase your work
-            </NavLink>
-            {profile?.role === "client" ? (
-              <NavLink to="/app/create" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
+            {!isClient ? (
+              <NavLink to="/app/create?mode=post" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
+                <Icon className="text-[#45BD62]">imagesmode</Icon>
+                Showcase your work
+              </NavLink>
+            ) : null}
+            {isClient ? (
+              <NavLink to="/app/create?mode=project" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
                 <Icon className="text-[#F7B125]">work</Icon>
                 Post a project
               </NavLink>

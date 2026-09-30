@@ -22,6 +22,7 @@ import MyProjects from "./app/pages/MyProjects";
 import ProjectDetails from "./app/pages/ProjectDetails";
 import ProjectWorkspace from "./app/pages/ProjectWorkspace";
 import MyProposals from "./app/pages/MyProposals";
+import ClientProposals from "./app/pages/ClientProposals";
 import SubmitProposal from "./app/pages/SubmitProposal";
 import Messages from "./app/pages/Messages";
 import Notifications from "./app/pages/Notifications";
@@ -150,11 +151,12 @@ function App() {
           />
           <Route path="discover" element={<Discover session={session} profile={profile} />} />
           <Route path="projects" element={<MyProjects profile={profile} session={session} />} />
-          <Route path="projects/:id" element={<ProjectDetails session={session} />} />
+          <Route path="projects/:id" element={<ProjectDetails session={session} profile={profile} />} />
           <Route path="projects/:id/responses" element={<ProjectResponses session={session} />} />
           <Route path="workspace/:id" element={<ProjectWorkspace />} />
           <Route path="proposals" element={<MyProposals session={session} />} />
-          <Route path="proposals/new/:projectId" element={<SubmitProposal session={session} />} />
+          <Route path="proposals/received" element={<ClientProposals session={session} />} />
+          <Route path="proposals/new/:projectId" element={<SubmitProposal session={session} profile={profile} />} />
           <Route path="messages" element={<Messages session={session} />} />
           <Route path="notifications" element={<Notifications session={session} />} />
           <Route path="network" element={<Network session={session} profile={profile} />} />

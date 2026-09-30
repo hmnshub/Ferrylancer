@@ -219,6 +219,10 @@ create table if not exists public.proposals (
   created_at timestamptz not null default now()
 );
 
+-- A developer can submit only one proposal per project.
+create unique index if not exists proposals_project_freelancer_unique
+  on public.proposals (project_id, freelancer_id);
+
 -- Existing projects need this migration after the original schema has run.
 alter table public.proposals add column if not exists proposal_links jsonb not null default '[]'::jsonb;
 alter table public.projects add column if not exists estimated_time text;
@@ -401,7 +405,15 @@ create policy "comments owner write" on public.post_comments for all using (auth
 drop policy if exists "projects public read" on public.projects;
 create policy "projects public read" on public.projects for select using (true);
 drop policy if exists "projects owner write" on public.projects;
-create policy "projects owner write" on public.projects for all using (auth.uid() = client_id) with check (auth.uid() = client_id);
+create policy "projects owner write" on public.projects for all
+using (
+  auth.uid() = client_id
+  and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'client')
+)
+with check (
+  auth.uid() = client_id
+  and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'client')
+);
 
 -- Proposals: visible to the freelancer who wrote it and the client who owns the project.
 drop policy if exists "proposals visible to participants" on public.proposals;
@@ -413,6 +425,7 @@ drop policy if exists "freelancer creates own proposal" on public.proposals;
 -- Owners cannot submit proposals to their own projects, and applications close on the configured date.
 create policy "freelancer creates own proposal" on public.proposals for insert with check (
   auth.uid() = freelancer_id
+  and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'freelancer')
   and auth.uid() <> (select client_id from public.projects where projects.id = proposals.project_id)
   and (
     (select application_deadline from public.projects where projects.id = proposals.project_id) is null

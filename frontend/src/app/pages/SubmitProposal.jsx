@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { Card, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
-export default function SubmitProposal({ session }) {
+export default function SubmitProposal({ session, profile }) {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [bid, setBid] = useState("");
@@ -21,11 +21,17 @@ export default function SubmitProposal({ session }) {
   );
   const isOwner = project?.client_id === session?.user?.id;
   const isClosed = project?.application_deadline && new Date(`${project.application_deadline}T23:59:59`) < new Date();
+  const accountRole = profile?.role || session?.user?.user_metadata?.role;
+  const isDeveloper = accountRole === "freelancer" || accountRole === "talent" || accountRole === "developer";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isOwner) {
       setError("You cannot apply to your own project.");
+      return;
+    }
+    if (!isDeveloper) {
+      setError("Only Developer accounts can submit proposals. Please use a Developer account to apply for projects.");
       return;
     }
     if (isClosed) {
@@ -42,10 +48,14 @@ export default function SubmitProposal({ session }) {
       if (!supabase || !session?.user?.id) throw new Error("You must be signed in to submit a proposal.");
       const { data: applicantProfile, error: profileLookupError } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, role")
         .eq("id", session.user.id)
         .maybeSingle();
       if (profileLookupError) throw profileLookupError;
+      if (applicantProfile?.role !== "freelancer") {
+        setError("Only Developer accounts can submit proposals. Please use a Developer account to apply for projects.");
+        return;
+      }
       if (!applicantProfile) {
         const { error: profileInsertError } = await supabase.from("profiles").insert({
           id: session.user.id,
@@ -53,6 +63,18 @@ export default function SubmitProposal({ session }) {
           full_name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "Ferrylance Member",
         });
         if (profileInsertError && profileInsertError.code !== "23505") throw profileInsertError;
+      }
+      const { data: existingProposal, error: existingProposalError } = await supabase
+        .from("proposals")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("freelancer_id", session.user.id)
+        .limit(1)
+        .maybeSingle();
+      if (existingProposalError) throw existingProposalError;
+      if (existingProposal) {
+        setError("You have already submitted a proposal for this project. You can only submit one proposal per project.");
+        return;
       }
       const proposalPayload = {
         project_id: projectId,
@@ -69,7 +91,12 @@ export default function SubmitProposal({ session }) {
         const retry = await supabase.from("proposals").insert(legacyPayload);
         insertError = retry.error;
       }
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === "23505" || /duplicate|unique/i.test(insertError.message || "")) {
+          throw new Error("You have already submitted a proposal for this project. You can only submit one proposal per project.");
+        }
+        throw insertError;
+      }
       navigate("/app/proposals");
     } catch (err) {
       console.error(err);

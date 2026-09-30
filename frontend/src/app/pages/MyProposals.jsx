@@ -9,7 +9,7 @@ export default function MyProposals({ session }) {
     (sb) =>
       sb
         .from("proposals")
-        .select("*, project:projects(title, client)")
+        .select("*, project:projects(title, client_id)")
         .eq("freelancer_id", session?.user?.id || "")
         .order("created_at", { ascending: false }),
     [session?.user?.id],
@@ -45,7 +45,7 @@ export default function MyProposals({ session }) {
             <tbody className="divide-y divide-[#e5eeff]">
               {proposals.map((p) => {
                 const title = p.project?.title || p.project;
-                const client = p.project?.client || p.client;
+                const client = p.project?.client_id ? "Client" : p.client || "Client";
                 return (
                   <tr key={p.id} className="block px-5 py-4 sm:table-row sm:px-0 sm:py-0">
                     <td className="block px-0 py-1 font-semibold text-[#0b1c30] sm:table-cell sm:px-5 sm:py-4">

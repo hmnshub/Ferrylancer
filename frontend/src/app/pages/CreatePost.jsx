@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiUpload } from "../../lib/apiClient";
 import { compressMultipleImages } from "../../lib/imageCompressor";
 import { CROP_OPTIONS, closestCropOption, cropImageToAspect } from "../../lib/imageCropper";
@@ -8,8 +8,11 @@ import { Card, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
 export default function CreatePost({ session, profile }) {
   const navigate = useNavigate();
-  const isClient = profile?.role === "client";
-  const [mode, setMode] = useState(isClient ? "project" : "post");
+  const [searchParams] = useSearchParams();
+  const accountRole = profile?.role || session?.user?.user_metadata?.role;
+  const isClient = accountRole === "client";
+  const requestedMode = searchParams.get("mode");
+  const [mode] = useState(isClient && requestedMode !== "post" ? "project" : "post");
   const [content, setContent] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
   const [budget, setBudget] = useState("");
@@ -61,6 +64,10 @@ export default function CreatePost({ session, profile }) {
 
   const handleSubmit = async () => {
     if (!content.trim() || (mode === "project" && (!projectTitle.trim() || !budget.trim() || !estimatedTime.trim() || !deadline || !applicationDeadline))) return;
+    if (mode === "project" && !isClient) {
+      setError("Only User accounts can post projects. Developers can showcase their work and browse available projects.");
+      return;
+    }
     setPosting(true);
     setError("");
     setUploadStatus("");
@@ -167,26 +174,9 @@ export default function CreatePost({ session, profile }) {
     <div className="mx-auto min-h-[calc(100vh-7rem)] max-w-[680px] py-2 sm:py-6">
       <div className="overflow-hidden rounded-3xl border border-[#D8DADF] bg-white shadow-[0_18px_50px_rgba(20,32,90,.12)]">
       <header className="flex items-center justify-between border-b border-[#EEF0F4] px-5 py-4 sm:px-7">
-        <h1 className="text-xl font-bold tracking-tight text-[#050505]">{isClient && mode === "project" ? "Post a Project" : "Create Post"}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-[#050505]">{isClient && mode === "project" ? "Post a Project" : !isClient ? "Showcase Your Work" : "Create Post"}</h1>
         <button type="button" onClick={() => navigate(-1)} aria-label="Close create post" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F2F5] text-[#65676B] transition hover:bg-[#E4E6EB] hover:text-[#050505]"><Icon>close</Icon></button>
       </header>
-
-      {isClient ? (
-        <div className="mx-5 mt-5 flex gap-1 rounded-xl border border-[#D8DADF] bg-[#F7F8FA] p-1 sm:mx-7 sm:mt-7">
-          <button
-            onClick={() => setMode("post")}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition ${mode === "post" ? "bg-[#1877F2] text-white" : "text-[#65676B]"}`}
-          >
-            Share an Update
-          </button>
-          <button
-            onClick={() => setMode("project")}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition ${mode === "project" ? "bg-[#1877F2] text-white" : "text-[#65676B]"}`}
-          >
-            Post a Project
-          </button>
-        </div>
-      ) : null}
 
       <Card className="rounded-none border-0 p-5 shadow-none sm:p-7">
         {mode === "project" ? (
@@ -225,7 +215,9 @@ export default function CreatePost({ session, profile }) {
           placeholder={
             mode === "project"
               ? "Describe the project: scope, deliverables, budget, and timeline..."
-              : "Share an update, a win, or something you're working on..."
+              : !isClient
+                ? "Show users what you can build — add a description, photos, or a portfolio link..."
+                : "Share an update, a win, or something you're working on..."
           }
           className="w-full resize-none border-none p-0 text-base leading-6 text-[#050505] outline-none placeholder:text-[#8A8D91]"
         />
@@ -299,7 +291,7 @@ export default function CreatePost({ session, profile }) {
       <div className="flex justify-end gap-2 border-t border-[#EEF0F4] bg-[#FCFDFE] px-5 py-4 sm:px-7">
         <SecondaryButton onClick={() => navigate(-1)} className="rounded-xl px-5">Cancel</SecondaryButton>
         <PrimaryButton onClick={handleSubmit} className="rounded-xl px-5" disabled={posting || !content.trim() || (mode === "project" && (!projectTitle.trim() || !budget.trim() || !estimatedTime.trim() || !deadline || !applicationDeadline))}>
-          {posting ? "Posting..." : mode === "project" ? "Post Project" : "Post"}
+          {posting ? "Posting..." : mode === "project" ? "Post Project" : !isClient ? "Showcase Work" : "Post"}
         </PrimaryButton>
       </div>
       </div>

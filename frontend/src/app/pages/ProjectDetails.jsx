@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { Card, Icon, PrimaryButton, SecondaryButton } from "../ui/primitives";
 
-export default function ProjectDetails({ session }) {
+export default function ProjectDetails({ session, profile }) {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -16,6 +16,7 @@ export default function ProjectDetails({ session }) {
   if (error) return <Card className="border-[#f3b5b5] bg-[#fff7f7] p-8"><Icon className="mb-3 text-3xl text-[#ba1a1a]">error_outline</Icon><h1 className="text-lg font-bold text-[#050505]">Unable to load this project</h1><p className="mt-2 text-sm text-[#65676B]">Supabase returned an error while opening this project. Refresh the page and try again.</p><p className="mt-3 text-xs text-[#ba1a1a]">{error.message || "Project query failed"}</p><SecondaryButton className="mt-5" onClick={() => navigate(-1)}>Go back</SecondaryButton></Card>;
   if (!project) return <Card className="p-8"><h1 className="text-lg font-bold text-[#050505]">Project not found</h1><SecondaryButton className="mt-5" onClick={() => navigate(-1)}>Go back</SecondaryButton></Card>;
   const isOwner = project.client_id === session?.user?.id;
+  const isDeveloper = (profile?.role || session?.user?.user_metadata?.role) === "freelancer";
   const responseCount = project.proposals || 0;
 
   return (
@@ -90,6 +91,8 @@ export default function ProjectDetails({ session }) {
               <NavLink to={`/app/projects/${project.id}/responses`} className="block">
                 <PrimaryButton className="w-full justify-center py-3">View {responseCount} Response{responseCount === 1 ? "" : "s"}</PrimaryButton>
               </NavLink>
+            ) : !isDeveloper ? (
+              <p className="rounded-lg bg-[#F0F2F5] px-3 py-2 text-sm font-semibold text-[#565e74]">Only Developer accounts can submit proposals.</p>
             ) : project.application_deadline && new Date(`${project.application_deadline}T23:59:59`) < new Date() ? (
               <p className="rounded-lg bg-[#fff4e5] px-3 py-2 text-sm font-semibold text-[#9a5b00]">Applications are closed for this project.</p>
             ) : (
