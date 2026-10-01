@@ -11,6 +11,13 @@ export default function ProjectDetails({ session, profile }) {
     [id],
     null
   );
+  const { data: myProposal } = useSupabaseQuery(
+    (sb) => session?.user?.id
+      ? sb.from("proposals").select("id, status, bid_amount, delivery_days").eq("project_id", id).eq("freelancer_id", session.user.id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    [id, session?.user?.id],
+    null
+  );
 
   if (loading) return <div className="rounded-2xl border border-[#D8DADF] bg-white p-8 text-center text-sm text-[#65676B]">Loading project…</div>;
   if (error) return <Card className="border-[#f3b5b5] bg-[#fff7f7] p-8"><Icon className="mb-3 text-3xl text-[#ba1a1a]">error_outline</Icon><h1 className="text-lg font-bold text-[#050505]">Unable to load this project</h1><p className="mt-2 text-sm text-[#65676B]">Supabase returned an error while opening this project. Refresh the page and try again.</p><p className="mt-3 text-xs text-[#ba1a1a]">{error.message || "Project query failed"}</p><SecondaryButton className="mt-5" onClick={() => navigate(-1)}>Go back</SecondaryButton></Card>;
@@ -99,6 +106,11 @@ export default function ProjectDetails({ session, profile }) {
               </NavLink>
             ) : !isDeveloper ? (
               <p className="rounded-lg bg-[#F0F2F5] px-3 py-2 text-sm font-semibold text-[#565e74]">Only Developer accounts can submit proposals.</p>
+            ) : myProposal ? (
+              <div className="rounded-lg border border-[#BFDBFE] bg-[#E7F3FF] px-3 py-2.5 text-sm font-semibold text-[#1877F2]">
+                <div className="flex items-center justify-between gap-2"><span>Already applied</span><span className="rounded-full bg-white px-2 py-1 text-xs capitalize">{myProposal.status || "Under Review"}</span></div>
+                <span className="mt-1 block text-xs font-normal text-[#65676B]">Your application is saved in My Projects.</span>
+              </div>
             ) : project.application_deadline && new Date(`${project.application_deadline}T23:59:59`) < new Date() ? (
               <p className="rounded-lg bg-[#fff4e5] px-3 py-2 text-sm font-semibold text-[#9a5b00]">Applications are closed for this project.</p>
             ) : (

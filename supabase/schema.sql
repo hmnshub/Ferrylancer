@@ -201,6 +201,7 @@ create table if not exists public.projects (
   escrow_amount text,
   escrow_status text not null default 'Not funded', -- Not funded | Held | Released
   estimated_time text,
+  time_logged_hours numeric not null default 0,
   deadline text,
   application_deadline date,
   tags jsonb not null default '[]'::jsonb,
@@ -247,8 +248,49 @@ create table if not exists public.milestones (
   title text not null,
   status text not null default 'upcoming', -- upcoming | in_progress | done
   due date,
-  amount text
+  amount text,
+  proposed_by uuid references public.profiles (id) on delete set null,
+  approval_status text not null default 'approved', -- pending | approved | declined
+  payment_status text not null default 'unpaid' -- unpaid | paid | confirmed
 );
+
+alter table public.milestones add column if not exists proposed_by uuid references public.profiles (id) on delete set null;
+alter table public.milestones add column if not exists approval_status text not null default 'approved';
+alter table public.milestones add column if not exists payment_status text not null default 'unpaid';
+
+create table if not exists public.project_tasks (
+  id uuid primary key default uuid_generate_v4(),
+  project_id uuid not null references public.projects (id) on delete cascade,
+  title text not null,
+  status text not null default 'todo', -- todo | in_progress | completed
+  due date,
+  assignee_id uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.project_files (
+  id uuid primary key default uuid_generate_v4(),
+  project_id uuid not null references public.projects (id) on delete cascade,
+  uploaded_by uuid not null references public.profiles (id) on delete cascade,
+  name text not null,
+  path text not null unique,
+  size_bytes bigint,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.project_payments (
+  id uuid primary key default uuid_generate_v4(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  milestone_id uuid not null references public.milestones(id) on delete cascade,
+  amount text not null,
+  status text not null default 'sent', -- sent | received
+  sent_by uuid not null references public.profiles(id) on delete cascade,
+  received_by uuid references public.profiles(id) on delete set null,
+  sent_at timestamptz not null default now(),
+  received_at timestamptz
+);
+
+alter table public.projects add column if not exists time_logged_hours numeric not null default 0;
 
 -- ---------------------------------------------------------------------
 -- connections (network / "connect" button on profiles)
@@ -355,6 +397,9 @@ alter table public.projects enable row level security;
 alter table public.proposals enable row level security;
 alter table public.saved_projects enable row level security;
 alter table public.milestones enable row level security;
+alter table public.project_tasks enable row level security;
+alter table public.project_files enable row level security;
+alter table public.project_payments enable row level security;
 alter table public.connections enable row level security;
 alter table public.follows enable row level security;
 alter table public.ratings enable row level security;
@@ -446,8 +491,85 @@ create policy "saved projects owner only" on public.saved_projects for all using
 drop policy if exists "milestones visible to project participants" on public.milestones;
 create policy "milestones visible to project participants" on public.milestones for select using (true);
 drop policy if exists "milestones client write" on public.milestones;
-create policy "milestones client write" on public.milestones for all using (
+drop policy if exists "project participants manage milestones" on public.milestones;
+drop policy if exists "clients manage milestones" on public.milestones;
+drop policy if exists "freelancers propose milestones" on public.milestones;
+create policy "clients manage milestones" on public.milestones for all using (
   auth.uid() in (select client_id from public.projects where projects.id = milestones.project_id)
+) with check (
+  auth.uid() in (select client_id from public.projects where projects.id = milestones.project_id)
+);
+create policy "freelancers propose milestones" on public.milestones for insert with check (
+  auth.uid() = proposed_by
+  and approval_status = 'pending'
+  and auth.uid() in (select hired_freelancer_id from public.projects where projects.id = milestones.project_id)
+);
+drop policy if exists "freelancers confirm milestone payment" on public.milestones;
+create policy "freelancers confirm milestone payment" on public.milestones for update using (
+  auth.uid() in (select hired_freelancer_id from public.projects where projects.id = milestones.project_id)
+  and payment_status = 'paid'
+) with check (
+  auth.uid() in (select hired_freelancer_id from public.projects where projects.id = milestones.project_id)
+  and payment_status = 'confirmed'
+  and status = 'done'
+);
+
+drop policy if exists "project participants read tasks" on public.project_tasks;
+create policy "project participants read tasks" on public.project_tasks for select using (
+  auth.uid() in (
+    select client_id from public.projects where projects.id = project_tasks.project_id
+    union
+    select hired_freelancer_id from public.projects where projects.id = project_tasks.project_id
+  )
+);
+drop policy if exists "project clients manage tasks" on public.project_tasks;
+drop policy if exists "project participants manage tasks" on public.project_tasks;
+drop policy if exists "project clients manage tasks" on public.project_tasks;
+create policy "project clients manage tasks" on public.project_tasks for all using (
+  auth.uid() in (select client_id from public.projects where projects.id = project_tasks.project_id)
+) with check (
+  auth.uid() in (select client_id from public.projects where projects.id = project_tasks.project_id)
+);
+
+drop policy if exists "project participants read files" on public.project_files;
+create policy "project participants read files" on public.project_files for select using (
+  auth.uid() in (
+    select client_id from public.projects where projects.id = project_files.project_id
+    union
+    select hired_freelancer_id from public.projects where projects.id = project_files.project_id
+  )
+);
+drop policy if exists "project participants upload files" on public.project_files;
+create policy "project participants upload files" on public.project_files for insert with check (
+  auth.uid() = uploaded_by
+  and auth.uid() in (
+    select client_id from public.projects where projects.id = project_files.project_id
+    union
+    select hired_freelancer_id from public.projects where projects.id = project_files.project_id
+  )
+);
+
+drop policy if exists "project participants read payments" on public.project_payments;
+create policy "project participants read payments" on public.project_payments for select using (
+  auth.uid() in (
+    select client_id from public.projects where projects.id = project_payments.project_id
+    union
+    select hired_freelancer_id from public.projects where projects.id = project_payments.project_id
+  )
+);
+drop policy if exists "clients send payments" on public.project_payments;
+create policy "clients send payments" on public.project_payments for insert with check (
+  auth.uid() = sent_by
+  and auth.uid() in (select client_id from public.projects where projects.id = project_payments.project_id)
+);
+drop policy if exists "freelancers confirm payments" on public.project_payments;
+create policy "freelancers confirm payments" on public.project_payments for update using (
+  auth.uid() in (select hired_freelancer_id from public.projects where projects.id = project_payments.project_id)
+  and status = 'sent'
+) with check (
+  auth.uid() in (select hired_freelancer_id from public.projects where projects.id = project_payments.project_id)
+  and status = 'received'
+  and received_by = auth.uid()
 );
 
 -- Connections: visible + writable by either party.
@@ -541,6 +663,10 @@ insert into storage.buckets (id, name, public)
 values ('portfolio-images', 'portfolio-images', true)
 on conflict (id) do nothing;
 
+insert into storage.buckets (id, name, public)
+values ('project-files', 'project-files', false)
+on conflict (id) do update set public = false;
+
 
 -- Storage object policies: authenticated users may manage files inside
 -- their own user-id folder; public buckets remain publicly readable.
@@ -570,4 +696,28 @@ on storage.objects for delete to authenticated
 using (
   bucket_id in ('avatars', 'post-images', 'portfolio-images')
   and (storage.foldername(name))[1] = (select auth.uid()::text)
+);
+
+drop policy if exists "project participants upload files" on storage.objects;
+create policy "project participants upload files"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'project-files'
+  and auth.uid() in (
+    select client_id from public.projects where projects.id = ((storage.foldername(name))[1])::uuid
+    union
+    select hired_freelancer_id from public.projects where projects.id = ((storage.foldername(name))[1])::uuid
+  )
+);
+
+drop policy if exists "project participants read files" on storage.objects;
+create policy "project participants read files"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'project-files'
+  and auth.uid() in (
+    select client_id from public.projects where projects.id = ((storage.foldername(name))[1])::uuid
+    union
+    select hired_freelancer_id from public.projects where projects.id = ((storage.foldername(name))[1])::uuid
+  )
 );

@@ -153,7 +153,7 @@ function App() {
           <Route path="projects" element={<MyProjects profile={profile} session={session} />} />
           <Route path="projects/:id" element={<ProjectDetails session={session} profile={profile} />} />
           <Route path="projects/:id/responses" element={<ProjectResponses session={session} />} />
-          <Route path="workspace/:id" element={<ProjectWorkspace />} />
+          <Route path="workspace/:id" element={<ProjectWorkspace session={session} />} />
           <Route path="proposals" element={<MyProposals session={session} />} />
           <Route path="proposals/received" element={<ClientProposals session={session} />} />
           <Route path="proposals/new/:projectId" element={<SubmitProposal session={session} profile={profile} />} />

@@ -6,7 +6,7 @@ import { runBackgroundTask } from "../../lib/backgroundTasks";
 import { useSupabaseQuery } from "../data/useSupabaseQuery";
 import { Badge, Card, EmptyState, PageHeader, PrimaryButton } from "../ui/primitives";
 
-const STATUS_TONE = { Open: "success", "In Progress": "primary", Completed: "neutral", Closed: "danger" };
+const STATUS_TONE = { Open: "success", "In Progress": "primary", Completed: "neutral", Closed: "danger", "Under Review": "warning", Accepted: "success", Declined: "danger" };
 
 export default function MyProjects({ profile, session }) {
   const isClient = profile?.role === "client";
@@ -16,8 +16,17 @@ export default function MyProjects({ profile, session }) {
   const [deleteError, setDeleteError] = useState("");
   const { data: projects = [], loading } = useSupabaseQuery(
     (sb) => {
-      const query = sb.from("projects").select("*, proposal_rows:proposals(count)").order("created_at", { ascending: false });
-      return isClient ? query.eq("client_id", session?.user?.id || "") : query.eq("hired_freelancer_id", session?.user?.id || "");
+      if (isClient) {
+        return sb.from("projects").select("*, proposal_rows:proposals(count)").eq("client_id", session?.user?.id || "").order("created_at", { ascending: false });
+      }
+      return sb.from("proposals")
+        .select("project_id, status, bid_amount, delivery_days, created_at, project:projects(*)")
+        .eq("freelancer_id", session?.user?.id || "")
+        .order("created_at", { ascending: false })
+        .then(({ data, error }) => ({
+          data: (data || []).filter((row) => row.project).map((row) => ({ ...row.project, proposal_status: row.status, proposal_bid: row.bid_amount, proposal_delivery_days: row.delivery_days, proposal_created_at: row.created_at })),
+          error,
+        }));
     },
     [session?.user?.id, isClient],
     []
@@ -51,7 +60,7 @@ export default function MyProjects({ profile, session }) {
     <div>
       <PageHeader
         title="My Projects"
-        description={isClient ? "Projects you've posted and are managing." : "Projects you're actively working on."}
+        description={isClient ? "Projects you've posted and are managing." : "Projects you've applied to and projects you're working on."}
         actions={
           isClient ? (
             <NavLink to="/app/create?mode=project">
@@ -65,8 +74,8 @@ export default function MyProjects({ profile, session }) {
       {loading ? null : !visibleProjects.length ? (
         <EmptyState
           icon="work_outline"
-          title={isClient ? "You haven't posted any projects yet" : "No active projects yet"}
-          description={isClient ? "Post your first project to start receiving proposals." : "Browse Discover to find your next project."}
+          title={isClient ? "You haven't posted any projects yet" : "You haven't applied to any projects yet"}
+          description={isClient ? "Post your first project to start receiving proposals." : "Browse Discover and submit a proposal to track it here."}
           action={
             <NavLink to={isClient ? "/app/create?mode=project" : "/app/discover"}>
               <PrimaryButton>{isClient ? "Post a Project" : "Find Work"}</PrimaryButton>
@@ -82,16 +91,16 @@ export default function MyProjects({ profile, session }) {
                 <div className="mb-3 flex items-start gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex items-start justify-between gap-2">
-                      <NavLink to={`/app/workspace/${project.id}`} className="font-bold leading-5 text-[#050505] hover:text-[#1877F2]">
+                      <NavLink to={isClient || project.hired_freelancer_id === session?.user?.id ? `/app/workspace/${project.id}` : `/app/projects/${project.id}`} className="font-bold leading-5 text-[#050505] hover:text-[#1877F2]">
                         {project.title}
                       </NavLink>
-                      <Badge tone={STATUS_TONE[project.status] || "neutral"}>{project.status}</Badge>
+                      <Badge tone={STATUS_TONE[isClient ? project.status : (project.proposal_status || project.status)] || "neutral"}>{isClient ? project.status : (project.proposal_status || project.status)}</Badge>
                     </div>
                     <p className="line-clamp-2 text-sm text-[#65676B]">{project.description}</p>
                   </div>
                   {project.image_url ? (
                     <NavLink
-                      to={`/app/workspace/${project.id}`}
+                      to={isClient || project.hired_freelancer_id === session?.user?.id ? `/app/workspace/${project.id}` : `/app/projects/${project.id}`}
                       className="group relative h-[82px] w-[112px] shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-[#E7F3FF] shadow-[0_6px_18px_rgba(24,119,242,.14)]"
                       aria-label={`Open ${project.title}`}
                     >
@@ -111,7 +120,13 @@ export default function MyProjects({ profile, session }) {
                 <span className="font-bold text-[#050505]">{project.budget}</span>
                 <span>Due {project.deadline}</span>
               </div>
-              {!isClient && project.hired_freelancer_id ? (
+              {!isClient && project.proposal_status ? (
+                <div className="mt-4 rounded-xl border border-[#D8DADF] bg-[#F7F8FA] p-3">
+                  <div className="flex items-center justify-between gap-3 text-sm"><span className="font-semibold text-[#050505]">Application status</span><strong className="capitalize text-[#1877F2]">{project.proposal_status}</strong></div>
+                  {project.proposal_bid ? <p className="mt-1 text-xs text-[#65676B]">Your bid: {project.proposal_bid}{project.proposal_delivery_days ? ` · Delivery: ${project.proposal_delivery_days}` : ""}</p> : null}
+                </div>
+              ) : null}
+              {!isClient && project.hired_freelancer_id === session?.user?.id ? (
                 <div className="mt-4 rounded-xl border border-[#BFDBFE] bg-[#E7F3FF] p-3">
                   <div className="flex items-center justify-between gap-3 text-sm"><span className="font-semibold text-[#050505]">Accepted budget</span><strong className="text-[#1877F2]">{project.accepted_budget || project.budget}</strong></div>
                   <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-[#0f7a44]"><span className="h-2 w-2 rounded-full bg-[#0f7a44]" />Payment held in escrow</div>
