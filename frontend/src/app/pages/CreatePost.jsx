@@ -83,7 +83,7 @@ export default function CreatePost({ session, profile }) {
 
         let uploadedUrls = [];
 
-        if (selectedPhotos.length > 0 && mode !== "project") {
+        if (selectedPhotos.length > 0) {
           setUploadStatus(`Optimizing ${selectedPhotos.length} photo${selectedPhotos.length > 1 ? "s" : ""}...`);
           const rawFiles = selectedPhotos.map((p) => p.file).filter(Boolean);
           const croppedFiles = await Promise.all(rawFiles.map(async (file, index) => {
@@ -130,6 +130,7 @@ export default function CreatePost({ session, profile }) {
               client_id: session.user.id,
               title: projectTitle.trim(),
               description: content.trim(),
+              image_url: uploadedUrls[0] || null,
               budget: `NPR ${budget.trim()}`,
               estimated_time: estimatedTime.trim(),
               deadline,

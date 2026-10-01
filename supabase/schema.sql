@@ -111,6 +111,7 @@ create table if not exists public.freelancer_services (
   profile_id uuid not null references public.profiles (id) on delete cascade,
   title text not null,
   description text,
+  image_url text,
   price_from text,
   delivery text
 );
@@ -226,6 +227,7 @@ create unique index if not exists proposals_project_freelancer_unique
 -- Existing projects need this migration after the original schema has run.
 alter table public.proposals add column if not exists proposal_links jsonb not null default '[]'::jsonb;
 alter table public.projects add column if not exists estimated_time text;
+alter table public.projects add column if not exists image_url text;
 alter table public.projects add column if not exists application_deadline date;
 alter table public.projects add column if not exists hired_freelancer_id uuid references public.profiles (id) on delete set null;
 alter table public.projects add column if not exists accepted_budget text;

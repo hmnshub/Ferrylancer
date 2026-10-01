@@ -40,6 +40,12 @@ export default function ProjectDetails({ session, profile }) {
             </span>
           </div>
 
+          {project.image_url ? (
+            <div className="mb-6 overflow-hidden rounded-2xl border border-[#D8DADF] bg-[#F0F2F5]">
+              <img src={project.image_url} alt={project.title} className="max-h-[420px] w-full object-cover" />
+            </div>
+          ) : null}
+
           <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat icon="payments" label="Budget" value={project.budget} />
             <Stat icon="schedule" label="Est. Time" value={project.estimated_time || "Flexible"} />
