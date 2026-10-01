@@ -77,21 +77,36 @@ export default function MyProjects({ profile, session }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {visibleProjects.map((project) => (
             <div key={project.id} id={`project-${project.id}`}>
-              <Card className={`p-5 transition ${selectedProjectId === project.id ? "ring-2 ring-[#1877F2]" : ""}`}>
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <NavLink to={`/app/workspace/${project.id}`} className="font-bold text-[#050505] hover:text-[#1877F2]">
-                  {project.title}
-                </NavLink>
-                <Badge tone={STATUS_TONE[project.status] || "neutral"}>{project.status}</Badge>
-              </div>
-              <p className="mb-3 line-clamp-2 text-sm text-[#65676B]">{project.description}</p>
-              <div className="flex flex-wrap gap-2">
-                {(project.tags || []).map((tag) => (
-                  <span key={tag} className="rounded-md bg-[#E7F3FF] px-2 py-0.5 text-xs font-semibold text-[#1877F2]">
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              <Card className={`overflow-hidden border-white/80 bg-white/80 p-0 shadow-[0_14px_36px_rgba(26,54,93,.10)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(26,54,93,.16)] ${selectedProjectId === project.id ? "ring-2 ring-[#1877F2]" : ""}`}>
+              <div className="p-5">
+                <div className="mb-3 flex items-start gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <NavLink to={`/app/workspace/${project.id}`} className="font-bold leading-5 text-[#050505] hover:text-[#1877F2]">
+                        {project.title}
+                      </NavLink>
+                      <Badge tone={STATUS_TONE[project.status] || "neutral"}>{project.status}</Badge>
+                    </div>
+                    <p className="line-clamp-2 text-sm text-[#65676B]">{project.description}</p>
+                  </div>
+                  {project.image_url ? (
+                    <NavLink
+                      to={`/app/workspace/${project.id}`}
+                      className="group relative h-[82px] w-[112px] shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-[#E7F3FF] shadow-[0_6px_18px_rgba(24,119,242,.14)]"
+                      aria-label={`Open ${project.title}`}
+                    >
+                      <img src={project.image_url} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-2 pb-1.5 pt-5 text-right text-[10px] font-bold text-white">View</span>
+                    </NavLink>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(project.tags || []).map((tag) => (
+                    <span key={tag} className="rounded-md bg-[#E7F3FF] px-2 py-0.5 text-xs font-semibold text-[#1877F2]">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               <div className="mt-4 flex items-center justify-between border-t border-[#E4E6EB] pt-3 text-xs text-[#65676B]">
                 <span className="font-bold text-[#050505]">{project.budget}</span>
                 <span>Due {project.deadline}</span>
@@ -117,6 +132,7 @@ export default function MyProjects({ profile, session }) {
                   </button>
                 </div>
               ) : null}
+              </div>
               </Card>
             </div>
           ))}
