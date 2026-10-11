@@ -142,12 +142,6 @@ export default function Feed({ profile, session }) {
               <Icon className="text-[#1877F2]">edit_document</Icon>
               Share an update
             </NavLink>
-            {!isClient ? (
-              <NavLink to="/app/create?mode=post" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
-                <Icon className="text-[#45BD62]">imagesmode</Icon>
-                Showcase your work
-              </NavLink>
-            ) : null}
             {isClient ? (
               <NavLink to="/app/create?mode=project" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[#65676B] hover:bg-[#F0F2F5] hover:text-[#1877F2]">
                 <Icon className="text-[#F7B125]">work</Icon>
